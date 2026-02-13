@@ -2,39 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>STATION_9 // OMEGA_V18</title>
+    <title>STATION_9 // COMPLIANCE_V19</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=VT323&display=swap');
-        body, html { margin: 0; padding: 0; background: #010101; overflow: hidden; cursor: none; }
+        body, html { margin: 0; padding: 0; background: #000; overflow: hidden; cursor: crosshair; }
         #viewport { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.4) saturate(0.5) brightness(1.2) blur(0.3px); image-rendering: pixelated; }
+        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.5) saturate(0.4) sepia(0.2); image-rendering: pixelated; }
         
-        /* VHS ARTIFACTS */
-        .vhs-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 3px, 3px 100%; }
-        .tracking-glitch { position: absolute; width: 100%; height: 5px; background: rgba(255,255,255,0.2); filter: blur(10px); z-index: 11; }
+        .vhs-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%); background-size: 100% 4px; opacity: 0.6; }
         
-        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; color: #f00; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-        .boot-box { border: 1px solid #f00; padding: 30px; box-shadow: 0 0 20px #500; background: #050000; }
-        button { background: #f00; color: #000; border: none; padding: 15px 50px; font-family: 'Archivo Black', sans-serif; cursor: pointer; margin-top: 20px; display: none; }
+        #ui-boot { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000088; z-index: 100; color: #fff; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .slide-btn { background: #fff; color: #000088; border: none; padding: 15px 40px; font-weight: bold; cursor: pointer; display: none; margin-top: 20px; }
+        #dl-status { position: fixed; bottom: 10px; right: 10px; color: #f00; font-family: monospace; z-index: 200; font-size: 12px; }
     </style>
 </head>
 <body>
 
-<div id="ui">
-    <div class="boot-box" id="log">
-        [SYSTEM] SEPHIROTH_V18_OMEGA ACTIVE<br>
-        [INIT] GENERATING ENTROPY SEED...<br>
-        [WARN] THE FIEND IS HUNGRY.
+<div id="ui-boot">
+    <div style="font-size: 2rem; border: 2px solid #fff; padding: 20px;">
+        CORPORATE TRAINING MODULE V19.0.4<br>
+        SUBJECT: <span id="subject-tag">...</span><br>
+        [CLASSIFIED - DO NOT DISTRIBUTE]
     </div>
-    <button id="start-btn">DECODE TRANSMISSION</button>
+    <button id="start-btn" class="slide-btn">BEGIN PRESENTATION</button>
 </div>
 
 <div id="viewport">
-    <div class="vhs-overlay"></div>
-    <div class="tracking-glitch" id="tg"></div>
+    <div class="vhs-lines"></div>
+    <div id="dl-status"></div>
     <canvas id="c"></canvas>
 </div>
 
@@ -45,8 +41,7 @@
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false });
     const startBtn = document.getElementById("start-btn");
-    const logBox = document.getElementById("log");
-    const tg = document.getElementById("tg");
+    const dlStatus = document.getElementById("dl-status");
 
     canvas.width = 1280;
     canvas.height = 720;
@@ -54,64 +49,41 @@
     let state = {
         active: false,
         frame: 0,
-        maxFrames: 2700, // ~45 Seconds
+        maxFrames: 3000, // ~50 Seconds
         keyword: "",
         wiki: "",
         images: [],
-        layout: Math.random(),
-        colors: { bg: "", ui: "" },
-        sigil: [],
+        seed: Math.random(),
         recorder: null,
         chunks: [],
         audio: { ctx: null, dest: null, master: null }
     };
 
-    // --- 1. THE MILLION-OPTION BRAIN ---
-    const PREFIX = ["Subliminal", "Quantum", "Genetic", "Hysterical", "Atonal", "Necrotic", "Liminal", "Recursive", "Synthetic", "Ethereal", "Fungal", "Nuclear", "Occult", "Memetic", "Fractal"];
-    const ROOT = ["Void", "Flesh", "Signal", "Gateway", "Organism", "Protocol", "Constraint", "Archive", "Toxin", "Aperture", "Frequency", "Marrow", "Vessel", "Lattice"];
-    const SUFFIX = ["Ascension", "Decay", "Bleed", "Saturation", "Collapse", "Convergence", "Breach", "Nullification", "Stasis", "Transfusion", "Erosion"];
-
-    function generateKeyword() {
-        const p = PREFIX[Math.floor(Math.random() * PREFIX.length)];
-        const r = ROOT[Math.floor(Math.random() * ROOT.length)];
-        const s = SUFFIX[Math.floor(Math.random() * SUFFIX.length)];
-        return `${p}_${r}_${s}`;
-    }
-
-    // --- 2. PROCEDURAL CULT LOGO ---
-    function generateSigil() {
-        let pts = [];
-        for(let i=0; i<6; i++) pts.push({x: Math.random()*100, y: Math.random()*100});
-        return pts;
-    }
+    // 1. Million-Word Concept Generator
+    const P = ["Recursive", "Involuntary", "Mandatory", "Subliminal", "Genetic", "Hysterical", "Atonal"];
+    const R = ["Compliance", "Flesh", "Transmission", "Protocol", "Nervous_System", "Organism"];
+    const S = ["Ascension", "Decay", "Stasis", "Transfusion", "Nullification"];
 
     async function init() {
-        state.keyword = generateKeyword();
-        state.sigil = generateSigil();
-        
-        // Randomize session palette
-        const hue = Math.random() * 360;
-        state.colors.bg = `hsl(${hue}, 40%, 10%)`;
-        state.colors.ui = `hsl(${hue}, 100%, 50%)`;
+        state.keyword = `${P[Math.floor(Math.random()*P.length)]}_${R[Math.floor(Math.random()*R.length)]}_${S[Math.floor(Math.random()*S.length)]}`;
+        document.getElementById("subject-tag").innerText = state.keyword;
 
         try {
-            const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${ROOT[Math.floor(Math.random()*ROOT.length)]}`);
+            const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${R[Math.floor(Math.random()*R.length)]}`);
             const d = await r.json();
-            state.wiki = (d.extract || "SIGNAL LOST").toUpperCase();
-        } catch { state.wiki = "THE DATA STREAM HAS BEEN CONSUMED BY THE VOID."; }
+            state.wiki = (d.extract || "DATA_MISSING").toUpperCase();
+        } catch { state.wiki = "THE ARCHIVE HAS BEEN PURGED FOR YOUR PROTECTION."; }
 
-        for(let i=0; i<5; i++) {
+        for(let i=0; i<8; i++) {
             const img = new Image();
             img.crossOrigin = "anonymous";
             img.src = `https://picsum.photos/seed/${Math.random()}/800/600?grayscale`;
             state.images.push(img);
         }
-
-        logBox.innerHTML += `<br>[OK] ANCHOR: ${state.keyword}<br>[OK] SIGIL GENERATED<br>[!] READY.`;
         startBtn.style.display = "block";
     }
 
-    // --- 3. MARTIAL ATONAL AUDIO ---
+    // 2. Audio: Martial/Atonal/Industrial
     function setupAudio() {
         const AC = window.AudioContext || window.webkitAudioContext;
         state.audio.ctx = new AC();
@@ -120,62 +92,29 @@
         state.audio.master.connect(state.audio.dest);
         state.audio.master.connect(state.audio.ctx.destination);
 
-        // Martial Industrial Pulse
+        // Industrial March
         setInterval(() => {
             if(!state.active) return;
-            const osc = state.audio.ctx.createOscillator();
+            const kick = state.audio.ctx.createOscillator();
             const g = state.audio.ctx.createGain();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(50, state.audio.ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(0.01, state.audio.ctx.currentTime + 0.3);
-            g.gain.setValueAtTime(0.4, state.audio.ctx.currentTime);
-            g.gain.linearRampToValueAtTime(0, state.audio.ctx.currentTime + 0.3);
-            osc.connect(g).connect(state.audio.master);
-            osc.start(); osc.stop(state.audio.ctx.currentTime + 0.3);
-        }, 500);
-
-        // Atonal Horror Layer
-        const tones = [130.81, 185.00, 220.00, 311.13]; // Tritones and dissonants
-        tones.forEach(f => {
-            const o = state.audio.ctx.createOscillator();
-            const g = state.audio.ctx.createGain();
-            o.frequency.value = f + (Math.random()*2);
-            g.gain.value = 0.03;
-            o.connect(g).connect(state.audio.master);
-            o.start();
-        });
+            kick.frequency.setValueAtTime(55, state.audio.ctx.currentTime);
+            kick.frequency.exponentialRampToValueAtTime(0.01, state.audio.ctx.currentTime + 0.4);
+            g.gain.setValueAtTime(0.3, state.audio.ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, state.audio.ctx.currentTime + 0.4);
+            kick.connect(g).connect(state.audio.master);
+            kick.start(); kick.stop(state.audio.ctx.currentTime + 0.4);
+        }, 700);
     }
 
-    // --- 4. VISUAL RENDER ENGINE ---
-    function drawSigil(x, y, size) {
-        ctx.save(); ctx.translate(x, y);
-        ctx.strokeStyle = state.colors.ui; ctx.lineWidth = 2;
-        ctx.beginPath();
-        state.sigil.forEach((p, i) => {
-            ctx.lineTo(p.x * (size/100), p.y * (size/100));
-        });
-        ctx.closePath(); ctx.stroke();
-        ctx.restore();
-    }
-
-    function drawFiend(alpha) {
+    // 3. Visuals: 80s Corporate PPT Style
+    function drawPolaroid(img, x, y, rot) {
         ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = "#000";
-        const jitter = Math.sin(state.frame * 0.2) * 5;
-        const prox = state.frame / state.maxFrames;
-        ctx.translate(640 + jitter, 360 + (prox * 200));
-        ctx.scale(1 + prox * 2, 1 + prox * 2);
-        
-        // Shadow Body
-        ctx.beginPath();
-        ctx.moveTo(-100, 200); ctx.lineTo(0, -150); ctx.lineTo(100, 200);
-        ctx.fill();
-        
-        // Glowing Slits
-        ctx.fillStyle = "#fff";
-        ctx.shadowBlur = 15; ctx.shadowColor = "#fff";
-        ctx.fillRect(-20, -80, 40, 2);
+        ctx.translate(x, y); ctx.rotate(rot);
+        ctx.fillStyle = "#eee"; ctx.fillRect(-220, -250, 440, 500); // Border
+        ctx.fillStyle = "#000"; ctx.fillRect(-200, -230, 400, 350); // Image Area
+        if(img.complete) ctx.drawImage(img, -200, -230, 400, 350);
+        ctx.fillStyle = "#222"; ctx.font = "20px 'VT323'";
+        ctx.fillText("FILE_ID: " + Math.random().toString(16).slice(2,8), -180, 200);
         ctx.restore();
     }
 
@@ -183,90 +122,90 @@
         if(!state.active) return;
         state.frame++;
         const p = state.frame / state.maxFrames;
-        tg.style.top = (Math.random() * 100) + "%";
 
-        // Draw Background
-        ctx.fillStyle = state.colors.bg;
+        // Background: Dirty Beige / Corporate Blue
+        ctx.fillStyle = (state.frame % 1000 < 500) ? "#cfc4a6" : "#000055";
         ctx.fillRect(0,0,1280,720);
 
-        // Random Layout Shifts
-        const layoutCycle = Math.floor(state.frame / 400) % 3;
-        
-        if(layoutCycle === 0) {
-            // "THE ANCHOR BOX"
-            ctx.fillStyle = "#000"; ctx.fillRect(100, 100, 600, 400);
-            ctx.strokeStyle = "#fff"; ctx.strokeRect(100, 100, 600, 400);
-            drawFiend(p * 0.6);
+        // Slide Content Logic
+        if(state.frame % 800 < 400) {
+            // SLIDE TYPE A: Text Heavy
+            ctx.fillStyle = "#000"; ctx.font = "bold 50px 'Archivo Black'";
+            ctx.fillText("MODULE: " + state.keyword, 100, 100);
             
-            ctx.fillStyle = "#700"; ctx.fillRect(50, 520, 700, 100);
-            ctx.fillStyle = "#fff"; ctx.font = "bold 45px 'Archivo Black'";
-            ctx.fillText("URGENT: " + state.keyword, 80, 585);
-        } else if (layoutCycle === 1) {
-            // "DATA OVERLAY"
-            const img = state.images[Math.floor(state.frame/200) % 5];
-            if(img.complete) {
-                const z = 1 + (p * 0.4);
-                ctx.save(); ctx.translate(640, 360); ctx.scale(z, z);
-                ctx.drawImage(img, -400, -300, 800, 600); ctx.restore();
-            }
-            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0, 0, 1280, 720);
-            ctx.fillStyle = "#fff"; ctx.font = "20px 'VT323'";
-            const lines = state.wiki.match(/.{1,80}(\s|$)/g) || [];
-            lines.slice(0, 25).forEach((l, i) => ctx.fillText(l, 100, 100 + (i*22)));
+            ctx.font = "24px 'VT323'";
+            const lines = state.wiki.match(/.{1,60}(\s|$)/g) || [];
+            lines.slice(0, 15).forEach((l, i) => {
+                // Redaction Easter Egg
+                if(Math.random() > 0.95) ctx.fillStyle = "#000";
+                else ctx.fillStyle = "#333";
+                ctx.fillText(l, 100, 200 + (i*30));
+            });
         } else {
-            // "THE VOID / SIGIL"
-            ctx.fillStyle = "#000"; ctx.fillRect(0,0,1280,720);
-            drawSigil(540, 260, 200);
-            ctx.fillStyle = "#fff"; ctx.font = "30px 'VT323'"; ctx.textAlign = "center";
-            ctx.fillText("HE IS BEHIND THE GLASS", 640, 550);
-            ctx.fillText("[DECODE: 01101000 01101001]", 640, 600);
+            // SLIDE TYPE B: Visual Evidence
+            const curImg = state.images[Math.floor(state.frame/400) % 8];
+            drawPolaroid(curImg, 640, 360, Math.sin(state.frame*0.01)*0.1);
         }
 
-        // Global Ticker
+        // The Fiend (Shadow Stalker)
+        ctx.globalAlpha = p * 0.4;
+        ctx.fillStyle = "#000";
+        ctx.beginPath(); ctx.arc(1200 - (p*200), 100 + (p*100), 50 + (p*100), 0, 7); ctx.fill();
+        ctx.globalAlpha = 1.0;
+
+        // Corporate Ticker
         ctx.fillStyle = "#000"; ctx.fillRect(0, 670, 1280, 50);
-        ctx.fillStyle = "#ff0"; ctx.font = "20px 'VT323'"; ctx.textAlign = "left";
-        ctx.fillText(`[STATION_9] ${state.keyword} // ${state.wiki} // [EASTER_EGG: CHECK_CONSOLE_LOG]`, 1280 - (state.frame*8 % 8000), 705);
+        ctx.fillStyle = "#fff"; ctx.font = "20px 'VT323'";
+        ctx.fillText("DO NOT SPEAK TO OTHER EMPLOYEES ABOUT " + state.keyword + " | STATUS: ENFORCING | ", 1280 - (state.frame*5 % 5000), 700);
 
-        // Logos & Symbols
-        drawSigil(1150, 50, 80);
-
-        // Horror Artifacts
-        if(Math.random() > 0.98 - (p * 0.02)) {
-            const h = Math.random() * 80;
-            ctx.drawImage(canvas, 0, Math.random()*720, 1280, h, Math.random()*60-30, Math.random()*720, 1280, h);
+        // Final Jumpscare / Glitch
+        if(p > 0.95 && Math.random() > 0.9) {
+            ctx.fillStyle = "#fff"; ctx.fillRect(0,0,1280,720);
         }
 
         if(state.frame < state.maxFrames) requestAnimationFrame(render);
         else finish();
     }
 
+    // 4. Engine Controls & Fixed Download
     async function start() {
-        document.getElementById("ui").style.display = "none";
-        console.log("%c [EASTER EGG]: The Fiend's true name is " + state.keyword.split("_")[1], "color: red; font-size: 20px;");
+        document.getElementById("ui-boot").style.display = "none";
         setupAudio();
+        
         const stream = canvas.captureStream(60);
         const combined = new MediaStream([...stream.getVideoTracks(), ...state.audio.dest.stream.getAudioTracks()]);
+
         state.recorder = new MediaRecorder(combined, { mimeType: 'video/webm;codecs=vp9,opus' });
-        state.recorder.ondataavailable = e => state.chunks.push(e.data);
-        state.recorder.onstop = save;
+        state.recorder.ondataavailable = e => { if(e.data.size > 0) state.chunks.push(e.data); };
+        
+        state.recorder.onstop = () => {
+            dlStatus.innerText = "PACKAGING TRANSMISSION...";
+            const blob = new Blob(state.chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `STATION9_COMPLIANCE_${state.keyword}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.location.reload();
+            }, 5000); // Give plenty of time for the download to trigger
+        };
+
         state.recorder.start(100);
         state.active = true;
         render();
 
-        const msg = new SpeechSynthesisUtterance("Transmission received. The " + state.keyword + " event is now unavoidable. Do not look away from the sigil.");
-        msg.pitch = 0.1; msg.rate = 0.7;
+        const msg = new SpeechSynthesisUtterance("Welcome to the Station 9 Compliance Module. Regarding " + state.keyword + ". This information is mandatory for your survival. Do not blink.");
+        msg.lang = 'en-US'; msg.pitch = 0.5; msg.rate = 0.85;
         window.speechSynthesis.speak(msg);
     }
 
-    function finish() { state.active = false; state.recorder.stop(); }
-
-    function save() {
-        const b = new Blob(state.chunks, { type: 'video/webm' });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(b);
-        a.download = `STATION9_OMEGA_${state.keyword}.webm`;
-        a.click();
-        setTimeout(() => window.location.reload(), 3000);
+    function finish() {
+        state.active = false;
+        state.recorder.stop();
+        dlStatus.innerText = "UPLOADING TO ARCHIVE...";
     }
 
     init();
