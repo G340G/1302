@@ -2,44 +2,42 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CHANNEL_9 // SEPHIROTH_V15</title>
+    <title>CHANNEL_9 // ENTITY_BREACH_V16</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap');
-        body, html { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: 'Archivo Black', sans-serif; cursor: none; }
-        #viewport { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.1) saturate(0.9); image-rendering: pixelated; }
-        
-        /* CRT & VHS PHYSICALITY */
-        .vhs { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
-            background-size: 100% 3px, 3px 100%; }
-        .scanline { position: absolute; width: 100%; height: 100px; background: rgba(255,255,255,0.05); filter: blur(10px); z-index: 11; animation: slide 10s infinite linear; }
-        @keyframes slide { 0% { top: -20%; } 100% { top: 120%; } }
+        @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=VT323&display=swap');
+        body, html { margin: 0; padding: 0; background: #000; overflow: hidden; cursor: none; }
+        #viewport { position: relative; width: 100vw; height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.2) saturate(0.7) brightness(1.1); image-rendering: pixelated; }
 
-        /* TERMINAL BOOT */
-        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000088; z-index: 100; 
-              display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; font-family: monospace; }
-        .msg { text-align: center; margin-bottom: 20px; line-height: 1.5; letter-spacing: 2px; }
-        button { background: #fff; color: #000088; border: none; padding: 15px 50px; font-weight: bold; cursor: pointer; display: none; }
-        #progress-line { position: absolute; bottom: 0; left: 0; height: 10px; background: #f00; width: 0%; z-index: 200; }
+        /* CRT OVERLAYS */
+        .vhs-fx { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.05), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.05));
+            background-size: 100% 4px, 4px 100%; opacity: 0.8; }
+        .glitch-bar { position: absolute; width: 100%; height: 2px; background: rgba(255,255,255,0.4); z-index: 11; opacity: 0.5; pointer-events: none; }
+        
+        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0000AA; z-index: 100; color: #fff; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .terminal { font-size: 1.8rem; text-align: left; max-width: 800px; padding: 20px; border: 2px solid #fff; }
+        button { background: #fff; color: #0000AA; border: none; padding: 20px 60px; font-family: 'Archivo Black', sans-serif; font-size: 1.5rem; cursor: pointer; margin-top: 30px; display: none; }
+        #progress { position: absolute; bottom: 0; left: 0; height: 10px; background: #f00; width: 0%; z-index: 200; box-shadow: 0 0 20px #f00; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="msg" id="boot-log">
-        SYS_VER: 15.0.4<br>
-        LOCATING NEURAL ANCHOR...<br>
-        [SEARCHING WIKIMEDIA DOMAIN]
+    <div class="terminal" id="term">
+        > C:\SEPHIROTH\BREACH_INIT.EXE...<br>
+        > SCANNING PHOSPHOR FREQUENCIES... [OK]<br>
+        > DETECTING NON-HUMAN RESIDUE... [WARNING]<br>
+        > THE FIEND IS TUNED IN.
     </div>
-    <button id="start-btn">ENGAGE BROADCAST</button>
+    <button id="start-btn">ACCEPT TRANSMISSION</button>
 </div>
 
 <div id="viewport">
-    <div class="vhs"></div>
-    <div class="scanline"></div>
-    <div id="progress-line"></div>
+    <div class="vhs-fx"></div>
+    <div class="glitch-bar" id="gb"></div>
+    <div id="progress"></div>
     <canvas id="c"></canvas>
 </div>
 
@@ -50,8 +48,8 @@
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false });
     const startBtn = document.getElementById("start-btn");
-    const bootLog = document.getElementById("boot-log");
-    const progressLine = document.getElementById("progress-line");
+    const progressLine = document.getElementById("progress");
+    const gb = document.getElementById("gb");
 
     canvas.width = 1280;
     canvas.height = 720;
@@ -59,42 +57,37 @@
     let state = {
         active: false,
         frame: 0,
-        maxFrames: 2400,
+        maxFrames: 2400, // 40 Seconds
         keyword: "",
         wiki: "",
         images: [],
+        proximity: 0, // 0 to 1, increases difficulty/horror
         recorder: null,
         chunks: [],
         audio: { ctx: null, dest: null, master: null }
     };
 
-    const CONCEPTS = ["Dementia", "Hysteria", "Obsolescence", "Radiation", "Pestilence", "Automation", "Despair", "Tapping"];
+    const CONCEPTS = ["Eschaton", "Liminality", "Tulpas", "Nervous_System", "Ectoplasm", "Paralysis", "Cold_War"];
+    const CREEPY_PHRASES = ["HE IS WITHIN THE SCANLINES", "DO NOT LOOK AT THE ANCHOR", "YOUR EYES ARE RECEIVERS", "THE PHOSPHOR IS BLEEDING", "PARITY SOUL MISMATCH"];
+    const JARGON = ["0x88_GHOST_PTR", "NULL_POSSESSION", "KERNEL_PANIC_RITUAL", "SPECTRAL_DITHER_ERR"];
 
-    // --- 1. THE BRAIN (Scraping & Seeding) ---
     async function init() {
         state.keyword = CONCEPTS[Math.floor(Math.random() * CONCEPTS.length)];
-        
         try {
             const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${state.keyword}`);
             const d = await r.json();
-            state.wiki = (d.extract || "NO SIGNAL FOUND").toUpperCase();
-            bootLog.innerHTML += `<br>ANCHOR: ${state.keyword}<br>BUFFER: READY`;
-        } catch { 
-            state.wiki = "THE SIGNAL IS INTERRUPTED BY BURIED FREQUENCIES."; 
-            bootLog.innerHTML += `<br>WIKI_ERROR: FALLBACK_LOADED`;
-        }
+            state.wiki = (d.extract || "NO SIGNAL").toUpperCase();
+        } catch { state.wiki = "THE VOID HAS REPLACED THE ARCHIVE."; }
 
-        for(let i=0; i<3; i++) {
+        for(let i=0; i<4; i++) {
             const img = new Image();
             img.crossOrigin = "anonymous";
-            img.src = `https://picsum.photos/seed/${Math.random()}/640/480?grayscale`;
+            img.src = `https://picsum.photos/seed/${Math.random()}/1280/720?grayscale&blur=1`;
             state.images.push(img);
         }
-
-        setTimeout(() => { startBtn.style.display = "block"; }, 1000);
+        startBtn.style.display = "block";
     }
 
-    // --- 2. THE AUDIO (Fixed Instance Error) ---
     function setupAudio() {
         const AC = window.AudioContext || window.webkitAudioContext;
         state.audio.ctx = new AC();
@@ -103,106 +96,151 @@
         state.audio.master.connect(state.audio.dest);
         state.audio.master.connect(state.audio.ctx.destination);
 
-        // Bumper Jingle
-        const jingle = state.audio.ctx.createOscillator();
-        jingle.type = 'triangle';
-        jingle.frequency.setValueAtTime(440, state.audio.ctx.currentTime);
-        jingle.frequency.exponentialRampToValueAtTime(110, state.audio.ctx.currentTime + 2);
-        const jG = state.audio.ctx.createGain();
-        jG.gain.setValueAtTime(0.2, state.audio.ctx.currentTime);
-        jG.gain.linearRampToValueAtTime(0, state.audio.ctx.currentTime + 2);
-        jingle.connect(jG).connect(state.audio.master);
-        jingle.start();
+        // Sub Drone (The Heartbeat)
+        const drone = state.audio.ctx.createOscillator();
+        drone.type = 'sine';
+        drone.frequency.value = 40;
+        const dG = state.audio.ctx.createGain();
+        dG.gain.value = 0.2;
+        drone.connect(dG).connect(state.audio.master);
+        drone.start();
 
-        // 80s Noise Floor (The Fix)
-        const sr = state.audio.ctx.sampleRate;
-        const buffer = state.audio.ctx.createBuffer(1, sr * 2, sr);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < sr * 2; i++) data[i] = Math.random() * 2 - 1;
-        const noise = state.audio.ctx.createBufferSource();
-        noise.buffer = buffer; noise.loop = true;
-        const nG = state.audio.ctx.createGain(); nG.gain.value = 0.03;
-        noise.connect(nG).connect(state.audio.master);
-        noise.start();
+        // Ghost Melody (FM Synthesis)
+        setInterval(() => {
+            if(!state.active) return;
+            const carrier = state.audio.ctx.createOscillator();
+            const modulator = state.audio.ctx.createOscillator();
+            const modGain = state.audio.ctx.createGain();
+            const env = state.audio.ctx.createGain();
+
+            carrier.type = 'sawtooth';
+            modulator.type = 'square';
+            
+            const freq = 50 + (Math.random() * 200);
+            carrier.frequency.value = freq;
+            modulator.frequency.value = freq * state.proximity * 10;
+            modGain.gain.value = 100 * state.proximity;
+
+            modulator.connect(modGain).connect(carrier.frequency);
+            carrier.connect(env).connect(state.audio.master);
+
+            env.gain.setValueAtTime(0, state.audio.ctx.currentTime);
+            env.gain.linearRampToValueAtTime(0.1 * state.proximity, state.audio.ctx.currentTime + 0.1);
+            env.gain.exponentialRampToValueAtTime(0.001, state.audio.ctx.currentTime + 1.5);
+
+            carrier.start(); carrier.stop(state.audio.ctx.currentTime + 1.6);
+            modulator.start(); modulator.stop(state.audio.ctx.currentTime + 1.6);
+        }, 1000 - (state.proximity * 800));
     }
 
-    function scare() {
-        const o = state.audio.ctx.createOscillator();
-        const g = state.audio.ctx.createGain();
-        o.type = 'sawtooth'; o.frequency.value = 60;
-        o.frequency.exponentialRampToValueAtTime(10, state.audio.ctx.currentTime + 0.3);
-        g.gain.setValueAtTime(0.5, state.audio.ctx.currentTime);
-        g.gain.linearRampToValueAtTime(0, state.audio.ctx.currentTime + 0.3);
-        o.connect(g).connect(state.audio.master);
-        o.start(); o.stop(state.audio.ctx.currentTime + 0.3);
-    }
-
-    // --- 3. VISUALS (The 80s Broadcast) ---
-    function drawTree(x, y, s) {
-        ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.strokeStyle = "#fff";
-        function b(l, a, d) {
-            if(d<=0) return;
-            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-l); ctx.stroke();
-            ctx.save(); ctx.translate(0,-l); ctx.rotate(a); b(l*0.8, a, d-1); ctx.restore();
-            ctx.save(); ctx.translate(0,-l); ctx.rotate(-a); b(l*0.8, a, d-1); ctx.restore();
+    function drawFiend(x, y, scale) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale * (1 + Math.sin(state.frame * 0.1) * 0.05), scale);
+        
+        // Procedural Shadow Mesh
+        ctx.fillStyle = "rgba(0,0,0,0.95)";
+        ctx.beginPath();
+        for(let i=0; i<8; i++) {
+            const ang = (i/8) * Math.PI * 2;
+            const r = 100 + (Math.random() * 20 * state.proximity);
+            ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r);
         }
-        b(40, 0.5 + Math.sin(state.frame*0.03)*0.1, 6);
+        ctx.closePath(); ctx.fill();
+
+        // Burning Eyes
+        ctx.fillStyle = "#fff";
+        ctx.shadowBlur = 15; ctx.shadowColor = "#fff";
+        const blink = Math.random() > 0.02 ? 1 : 0;
+        ctx.fillRect(-40, -20, 30 * blink, 3);
+        ctx.fillRect(10, -20, 30 * blink, 3);
         ctx.restore();
     }
 
     function render() {
         if(!state.active) return;
         state.frame++;
-        progressLine.style.width = (state.frame / state.maxFrames * 100) + "%";
+        state.proximity = state.frame / state.maxFrames;
+        progressLine.style.width = (state.proximity * 100) + "%";
+        gb.style.top = (Math.random() * 100) + "%";
 
-        // Background (Deep TV Blue)
-        ctx.fillStyle = "#000055";
+        // Draw Deep Blue Background
+        ctx.fillStyle = `rgb(0, 0, ${Math.floor(80 - (state.proximity * 80))})`;
         ctx.fillRect(0,0,1280,720);
 
-        if(state.frame % 800 < 500) {
-            // "ANCHOR" MODE
-            ctx.fillStyle = "#000"; ctx.fillRect(100, 100, 600, 400); // Box
+        // --- LAYOUT ---
+        if(state.frame % 600 < 400) {
+            // "REPORTING" MODE
+            ctx.fillStyle = "#000"; ctx.fillRect(100, 100, 600, 400);
             ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.strokeRect(100, 100, 600, 400);
 
-            // The Fiend (Procedural Face)
-            ctx.save(); ctx.translate(400, 350);
-            ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(0,0,80,0,6.28); ctx.fill();
-            ctx.fillStyle = "#fff"; 
-            if(Math.random() > 0.05) { ctx.fillRect(-40, -20, 30, 4); ctx.fillRect(10, -20, 30, 4); }
-            ctx.restore();
-
-            // Lower Third
-            ctx.fillStyle = "#990000"; ctx.fillRect(50, 520, 750, 80);
-            ctx.fillStyle = "#fff"; ctx.font = "bold 35px Arial";
-            ctx.fillText("CHANNEL 9 NEWS: " + state.keyword, 80, 575);
-
-            // Side Visual
-            const cur = state.images[Math.floor(state.frame/300) % 3];
-            if(cur.complete) {
-                ctx.drawImage(cur, 800, 100, 400, 300);
+            // Zooming Image Anomaly
+            const curImg = state.images[Math.floor(state.frame/600) % 4];
+            if(curImg.complete) {
+                ctx.save();
+                ctx.beginPath(); ctx.rect(800, 100, 400, 300); ctx.clip();
+                const zoom = 1 + (state.frame % 600) * 0.002;
+                ctx.drawImage(curImg, 800 - (200 * (zoom-1)), 100 - (150 * (zoom-1)), 400 * zoom, 300 * zoom);
+                ctx.restore();
                 ctx.strokeRect(800, 100, 400, 300);
             }
-        } else {
-            // "EMERGENCY" MODE
-            ctx.fillStyle = "#000"; ctx.fillRect(0,0,1280,720);
-            ctx.fillStyle = "#fff"; ctx.font = "18px Courier New";
-            const lines = state.wiki.match(/.{1,70}(\s|$)/g) || [];
-            lines.slice(0, 22).forEach((l, i) => ctx.fillText(l, 80, 80 + (i*25)));
+
+            // Lower Third
+            ctx.fillStyle = "#900"; ctx.fillRect(50, 520, 800, 90);
+            ctx.fillStyle = "#fff"; ctx.font = "bold 40px 'Archivo Black'";
+            ctx.fillText("REPORT: " + state.keyword, 80, 580);
             
-            if(Math.random() > 0.98) {
-                ctx.fillStyle = "#fff"; ctx.fillRect(0,0,1280,720);
-                scare();
+            // The Fiend (Growing Proximity)
+            drawFiend(400, 350, 0.8 + (state.proximity * 0.5));
+        } else {
+            // "SIGNAL LOST" MODE
+            ctx.fillStyle = "#000"; ctx.fillRect(0,0,1280,720);
+            ctx.fillStyle = "#fff"; ctx.font = "20px 'VT323'";
+            const lines = state.wiki.split(" ");
+            let currentLine = "";
+            let y = 100;
+            lines.forEach(word => {
+                if(currentLine.length + word.length > 60) {
+                    ctx.fillText(currentLine, 100, y);
+                    y += 30; currentLine = "";
+                }
+                currentLine += word + " ";
+            });
+            ctx.fillText(currentLine, 100, y);
+
+            // Jargon Interjections
+            if(Math.random() > 0.95) {
+                ctx.fillStyle = "#f00";
+                ctx.fillText(JARGON[Math.floor(Math.random()*JARGON.length)], Math.random()*800, Math.random()*700);
             }
         }
 
-        // Ticker
-        ctx.fillStyle = "#000"; ctx.fillRect(0, 650, 1280, 70);
-        ctx.fillStyle = "#FFFF00"; ctx.font = "bold 25px Arial";
-        ctx.fillText("TICKER: [MEM_ADDR_FAIL] " + state.wiki, 1280 - (state.frame*5 % 5000), 695);
+        // Ticker with Easter Egg
+        ctx.fillStyle = "#000"; ctx.fillRect(0, 660, 1280, 60);
+        ctx.fillStyle = "#FFFF00"; ctx.font = "25px 'VT323'";
+        const tickerMsg = `${state.wiki} | [DECODE: 49 20 41 4D 20 48 45 52 45] | ${CREEPY_PHRASES[Math.floor(state.frame/100)%5]}`;
+        ctx.fillText(tickerMsg, 1280 - (state.frame * 6 % 6000), 700);
 
-        drawTree(1180, 620, 0.4);
+        // Recursive Tree
+        const treeSway = Math.sin(state.frame * 0.05) * 0.2;
+        ctx.save(); ctx.translate(1150, 600); 
+        ctx.strokeStyle = `rgba(255,255,255,${0.5 + state.proximity*0.5})`;
+        function drawTree(l, d) {
+            if(d<=0) return;
+            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-l); ctx.stroke();
+            ctx.save(); ctx.translate(0,-l); ctx.rotate(0.5 + treeSway); drawTree(l*0.75, d-1); ctx.restore();
+            ctx.save(); ctx.translate(0,-l); ctx.rotate(-0.5 - treeSway); drawTree(l*0.75, d-1); ctx.restore();
+        }
+        drawTree(40, 6); ctx.restore();
 
-        if(Math.random() > 0.97) ctx.drawImage(canvas, 0, Math.random()*720, 1280, 2, Math.random()*20-10, Math.random()*720, 1280, 2);
+        // Glitch Overlays
+        if(Math.random() > 0.98 - (state.proximity * 0.05)) {
+            const h = Math.random() * 50;
+            ctx.drawImage(canvas, 0, Math.random()*720, 1280, h, Math.random()*40-20, Math.random()*720, 1280, h);
+            if(state.proximity > 0.8 && Math.random() > 0.9) {
+                ctx.fillStyle = "#fff"; ctx.fillRect(0,0,1280,720); // Jumpscare Flash
+            }
+        }
 
         if(state.frame < state.maxFrames) requestAnimationFrame(render);
         else finish();
@@ -220,8 +258,8 @@
         state.active = true;
         render();
 
-        const utter = new SpeechSynthesisUtterance("Channel 9 News Broadcast. Warning. Severe data corruption detected in the " + state.keyword + " sector. Please remain calm.");
-        utter.lang = 'en-US'; utter.pitch = 0.5; utter.rate = 0.8;
+        const utter = new SpeechSynthesisUtterance(`Warning. Public Service Announcement. The ${state.keyword} threshold has been breached. He is closer than the phosphor suggests.`);
+        utter.pitch = 0.2; utter.rate = 0.75;
         window.speechSynthesis.speak(utter);
     }
 
@@ -231,7 +269,7 @@
         const b = new Blob(state.chunks, { type: 'video/webm' });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(b);
-        a.download = `BROADCAST_CORRUPT_${state.keyword}.webm`;
+        a.download = `STATION9_BREACH_${state.keyword}.webm`;
         a.click();
         setTimeout(() => window.location.reload(), 3000);
     }
