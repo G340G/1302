@@ -2,35 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>STATION_9 // COMPLIANCE_V19</title>
+    <title>STATION_9 // THE_ARCHIVAL_RITUAL_V20</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=VT323&display=swap');
-        body, html { margin: 0; padding: 0; background: #000; overflow: hidden; cursor: crosshair; }
+        body, html { margin: 0; padding: 0; background: #050505; overflow: hidden; cursor: none; }
         #viewport { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.5) saturate(0.4) sepia(0.2); image-rendering: pixelated; }
+        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.6) saturate(0.3) brightness(1.1); image-rendering: pixelated; }
         
-        .vhs-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%); background-size: 100% 4px; opacity: 0.6; }
+        /* CRT SHADER OVERLAY */
+        .vhs-bloom { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.08), rgba(0, 255, 0, 0.03), rgba(0, 0, 255, 0.08));
+            background-size: 100% 3px, 3px 100%; mix-blend-mode: screen; }
         
-        #ui-boot { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000088; z-index: 100; color: #fff; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .slide-btn { background: #fff; color: #000088; border: none; padding: 15px 40px; font-weight: bold; cursor: pointer; display: none; margin-top: 20px; }
-        #dl-status { position: fixed; bottom: 10px; right: 10px; color: #f00; font-family: monospace; z-index: 200; font-size: 12px; }
+        #ui-gate { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; color: #fff; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .monitor-frame { border: 10px solid #222; background: #000044; padding: 40px; box-shadow: inset 0 0 50px #000; text-align: left; width: 700px; }
+        button { background: #fff; color: #000044; border: none; padding: 20px 60px; font-family: 'Archivo Black', sans-serif; font-size: 1.5rem; cursor: pointer; margin-top: 30px; display: none; transition: 0.3s; }
+        button:hover { background: #ff0000; color: #fff; }
     </style>
 </head>
 <body>
 
-<div id="ui-boot">
-    <div style="font-size: 2rem; border: 2px solid #fff; padding: 20px;">
-        CORPORATE TRAINING MODULE V19.0.4<br>
-        SUBJECT: <span id="subject-tag">...</span><br>
-        [CLASSIFIED - DO NOT DISTRIBUTE]
+<div id="ui-gate">
+    <div class="monitor-frame">
+        > STATION_9 INTERCEPT... [LOADED]<br>
+        > 27,000,000+ PERMUTATIONS DETECTED.<br>
+        > SUBJECT: <span id="keyword-display" style="color:#ff0;">...</span><br>
+        > WARNING: DO NOT RECORD THE AUDIO COMPONENT.<br>
+        > THE FIEND IS OBSERVING THIS HANDSHAKE.
     </div>
-    <button id="start-btn" class="slide-btn">BEGIN PRESENTATION</button>
+    <button id="start-btn">INITIALIZE RITUAL</button>
 </div>
 
 <div id="viewport">
-    <div class="vhs-lines"></div>
-    <div id="dl-status"></div>
+    <div class="vhs-bloom"></div>
     <canvas id="c"></canvas>
 </div>
 
@@ -41,7 +46,6 @@
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false });
     const startBtn = document.getElementById("start-btn");
-    const dlStatus = document.getElementById("dl-status");
 
     canvas.width = 1280;
     canvas.height = 720;
@@ -49,41 +53,46 @@
     let state = {
         active: false,
         frame: 0,
-        maxFrames: 3000, // ~50 Seconds
+        maxFrames: 3600, // 60 Seconds
         keyword: "",
-        wiki: "",
+        wikiTexts: [],
         images: [],
-        seed: Math.random(),
+        prox: 0,
         recorder: null,
         chunks: [],
         audio: { ctx: null, dest: null, master: null }
     };
 
-    // 1. Million-Word Concept Generator
-    const P = ["Recursive", "Involuntary", "Mandatory", "Subliminal", "Genetic", "Hysterical", "Atonal"];
-    const R = ["Compliance", "Flesh", "Transmission", "Protocol", "Nervous_System", "Organism"];
-    const S = ["Ascension", "Decay", "Stasis", "Transfusion", "Nullification"];
+    // --- 1. THE 27-MILLION COMBINATION BRAIN ---
+    const ADJ = ["Extradimensional", "Non-Euclidean", "Mandatory", "Visceral", "Dormant", "Cytotoxic", "Subterranean", "Obsessive", "Fungal", "Post-Human", "Logarithmic", "Bleeding", "Silent", "Inverted"];
+    const SUB = ["Vessel", "Nerve", "Architecture", "Pulse", "Constraint", "Aperture", "Marrow", "Lattice", "Protocol", "Echo", "Fluid", "Gland", "Threshold"];
+    const ACT = ["Convergence", "Nullification", "Erosion", "Saturation", "Bleed", "Harvest", "Compliance", "Collapse", "Transfusion", "Inhabitation"];
 
     async function init() {
-        state.keyword = `${P[Math.floor(Math.random()*P.length)]}_${R[Math.floor(Math.random()*R.length)]}_${S[Math.floor(Math.random()*S.length)]}`;
-        document.getElementById("subject-tag").innerText = state.keyword;
+        state.keyword = `${ADJ[Math.floor(Math.random()*ADJ.length)]} ${SUB[Math.floor(Math.random()*SUB.length)]} ${ACT[Math.floor(Math.random()*ACT.length)]}`;
+        document.getElementById("keyword-display").innerText = state.keyword;
 
-        try {
-            const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${R[Math.floor(Math.random()*R.length)]}`);
-            const d = await r.json();
-            state.wiki = (d.extract || "DATA_MISSING").toUpperCase();
-        } catch { state.wiki = "THE ARCHIVE HAS BEEN PURGED FOR YOUR PROTECTION."; }
+        // Scrape 3 random wiki entries for depth
+        const seeds = [SUB[Math.floor(Math.random()*SUB.length)], "Entomology", "Parapsychology"];
+        for(let s of seeds) {
+            try {
+                const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${s}`);
+                const d = await r.json();
+                state.wikiTexts.push((d.extract || "EMPTY").toUpperCase());
+            } catch { state.wikiTexts.push("THE SIGNAL IS TOO WEAK TO DECODE."); }
+        }
 
-        for(let i=0; i<8; i++) {
+        // Scrape complex images
+        for(let i=0; i<10; i++) {
             const img = new Image();
             img.crossOrigin = "anonymous";
-            img.src = `https://picsum.photos/seed/${Math.random()}/800/600?grayscale`;
+            img.src = `https://picsum.photos/seed/${Math.random()}/1024/768?grayscale`;
             state.images.push(img);
         }
         startBtn.style.display = "block";
     }
 
-    // 2. Audio: Martial/Atonal/Industrial
+    // --- 2. MULTI-INSTRUMENT ATONAL MUSIC ---
     function setupAudio() {
         const AC = window.AudioContext || window.webkitAudioContext;
         state.audio.ctx = new AC();
@@ -92,84 +101,127 @@
         state.audio.master.connect(state.audio.dest);
         state.audio.master.connect(state.audio.ctx.destination);
 
-        // Industrial March
+        // Industrial Martial Beat
         setInterval(() => {
             if(!state.active) return;
-            const kick = state.audio.ctx.createOscillator();
-            const g = state.audio.ctx.createGain();
-            kick.frequency.setValueAtTime(55, state.audio.ctx.currentTime);
-            kick.frequency.exponentialRampToValueAtTime(0.01, state.audio.ctx.currentTime + 0.4);
-            g.gain.setValueAtTime(0.3, state.audio.ctx.currentTime);
-            g.gain.linearRampToValueAtTime(0, state.audio.ctx.currentTime + 0.4);
-            kick.connect(g).connect(state.audio.master);
-            kick.start(); kick.stop(state.audio.ctx.currentTime + 0.4);
-        }, 700);
+            const time = state.audio.ctx.currentTime;
+            playNote(60, 'square', 0.2, 0.4); // Bass Drum
+            if(state.frame % 60 < 10) playNote(1200, 'sawtooth', 0.05, 0.1); // Metallic Snare
+        }, 600);
+
+        // Atonal Melody (The Ritual)
+        const scale = [130.81, 155.56, 185.00, 220.00, 261.63]; // C Minor Diminished
+        setInterval(() => {
+            if(!state.active) return;
+            const freq = scale[Math.floor(Math.random()*scale.length)];
+            playNote(freq, 'triangle', 0.1, 1.5);
+        }, 1200);
     }
 
-    // 3. Visuals: 80s Corporate PPT Style
-    function drawPolaroid(img, x, y, rot) {
+    function playNote(freq, type, vol, len) {
+        const o = state.audio.ctx.createOscillator();
+        const g = state.audio.ctx.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(freq, state.audio.ctx.currentTime);
+        g.gain.setValueAtTime(vol, state.audio.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, state.audio.ctx.currentTime + len);
+        o.connect(g).connect(state.audio.master);
+        o.start(); o.stop(state.audio.ctx.currentTime + len);
+    }
+
+    // --- 3. THE FIEND & DISTORTED VISUALS ---
+    function drawFiend(p) {
         ctx.save();
-        ctx.translate(x, y); ctx.rotate(rot);
-        ctx.fillStyle = "#eee"; ctx.fillRect(-220, -250, 440, 500); // Border
-        ctx.fillStyle = "#000"; ctx.fillRect(-200, -230, 400, 350); // Image Area
-        if(img.complete) ctx.drawImage(img, -200, -230, 400, 350);
-        ctx.fillStyle = "#222"; ctx.font = "20px 'VT323'";
-        ctx.fillText("FILE_ID: " + Math.random().toString(16).slice(2,8), -180, 200);
+        ctx.globalAlpha = p * 0.5;
+        ctx.fillStyle = "#000";
+        const jitter = Math.random() * 10;
+        ctx.translate(640 + jitter, 360);
+        ctx.scale(1 + p*3, 1 + p*3);
+        
+        // Procedural body
+        ctx.beginPath();
+        ctx.moveTo(-50, 100);
+        ctx.bezierCurveTo(-100, -200, 100, -200, 50, 100);
+        ctx.fill();
+        
+        // Eyes
+        ctx.fillStyle = "#fff";
+        if(Math.random() > 0.05) {
+            ctx.fillRect(-20, -120, 15, 2); ctx.fillRect(10, -120, 15, 2);
+        }
         ctx.restore();
     }
 
     function render() {
         if(!state.active) return;
         state.frame++;
-        const p = state.frame / state.maxFrames;
+        state.prox = state.frame / state.maxFrames;
 
-        // Background: Dirty Beige / Corporate Blue
-        ctx.fillStyle = (state.frame % 1000 < 500) ? "#cfc4a6" : "#000055";
+        // Draw Background (Sickly Green/Grey)
+        ctx.fillStyle = "#1a1c1a";
         ctx.fillRect(0,0,1280,720);
 
-        // Slide Content Logic
-        if(state.frame % 800 < 400) {
-            // SLIDE TYPE A: Text Heavy
-            ctx.fillStyle = "#000"; ctx.font = "bold 50px 'Archivo Black'";
-            ctx.fillText("MODULE: " + state.keyword, 100, 100);
+        // Dynamic Layouts
+        const scene = Math.floor(state.frame / 600) % 3;
+
+        if(scene === 0) {
+            // CORPORATE DATA
+            ctx.fillStyle = "#000"; ctx.fillRect(50, 50, 1180, 620);
+            ctx.strokeStyle = "#fff"; ctx.strokeRect(60, 60, 1160, 600);
+            ctx.fillStyle = "#fff"; ctx.font = "bold 40px Archivo Black";
+            ctx.fillText("PROTOCOL: " + state.keyword, 100, 120);
             
-            ctx.font = "24px 'VT323'";
-            const lines = state.wiki.match(/.{1,60}(\s|$)/g) || [];
-            lines.slice(0, 15).forEach((l, i) => {
-                // Redaction Easter Egg
-                if(Math.random() > 0.95) ctx.fillStyle = "#000";
-                else ctx.fillStyle = "#333";
-                ctx.fillText(l, 100, 200 + (i*30));
-            });
+            ctx.font = "20px VT323";
+            const txt = state.wikiTexts[0] || "";
+            const lines = txt.match(/.{1,90}(\s|$)/g) || [];
+            lines.slice(0, 15).forEach((l, i) => ctx.fillText(l, 100, 200 + (i*25)));
+        } else if(scene === 1) {
+            // POLAROID CORRUPTION
+            const img = state.images[Math.floor(state.frame/100) % 10];
+            ctx.save();
+            ctx.translate(640, 360);
+            ctx.rotate(Math.sin(state.frame*0.02)*0.1);
+            // Polaroid Frame
+            ctx.fillStyle = "#ddd"; ctx.fillRect(-320, -320, 640, 640);
+            ctx.fillStyle = "#000";
+            if(img.complete) {
+                // Melting effect
+                ctx.drawImage(img, -300, -300, 600, 450);
+                if(Math.random() > 0.8) {
+                    ctx.fillStyle = "rgba(0,0,0,0.5)";
+                    ctx.fillRect(-300, -300 + (Math.random()*450), 600, 20);
+                }
+            }
+            ctx.fillStyle = "#222"; ctx.font = "30px VT323";
+            ctx.fillText("SUBJECT_REF_" + state.frame, -280, 250);
+            ctx.restore();
         } else {
-            // SLIDE TYPE B: Visual Evidence
-            const curImg = state.images[Math.floor(state.frame/400) % 8];
-            drawPolaroid(curImg, 640, 360, Math.sin(state.frame*0.01)*0.1);
+            // THE FIEND REVEAL
+            ctx.fillStyle = "#000"; ctx.fillRect(0,0,1280,720);
+            drawFiend(state.prox);
+            ctx.fillStyle = "#fff"; ctx.font = "50px Archivo Black"; ctx.textAlign = "center";
+            if(Math.random() > 0.95) ctx.fillText("HE IS COMPLIANT", 640, 600);
         }
 
-        // The Fiend (Shadow Stalker)
-        ctx.globalAlpha = p * 0.4;
-        ctx.fillStyle = "#000";
-        ctx.beginPath(); ctx.arc(1200 - (p*200), 100 + (p*100), 50 + (p*100), 0, 7); ctx.fill();
-        ctx.globalAlpha = 1.0;
-
-        // Corporate Ticker
-        ctx.fillStyle = "#000"; ctx.fillRect(0, 670, 1280, 50);
-        ctx.fillStyle = "#fff"; ctx.font = "20px 'VT323'";
-        ctx.fillText("DO NOT SPEAK TO OTHER EMPLOYEES ABOUT " + state.keyword + " | STATUS: ENFORCING | ", 1280 - (state.frame*5 % 5000), 700);
-
-        // Final Jumpscare / Glitch
-        if(p > 0.95 && Math.random() > 0.9) {
-            ctx.fillStyle = "#fff"; ctx.fillRect(0,0,1280,720);
+        // Subliminal Overlays
+        if(Math.random() > 0.98) {
+            ctx.fillStyle = "rgba(255,0,0,0.2)";
+            ctx.fillRect(0,0,1280,720);
+            playNote(40, 'sawtooth', 0.5, 0.2); // Jumpscare Audio
         }
+
+        // Ticker
+        ctx.fillStyle = "#000"; ctx.fillRect(0, 680, 1280, 40);
+        ctx.fillStyle = "#0f0"; ctx.font = "20px VT323"; ctx.textAlign = "left";
+        ctx.fillText("STATION_9 // " + state.wikiTexts[1] + " // " + state.keyword, 1280 - (state.frame*6 % 10000), 710);
 
         if(state.frame < state.maxFrames) requestAnimationFrame(render);
         else finish();
     }
 
-    // 4. Engine Controls & Fixed Download
+    // --- 4. ENGINE & DOWNLOAD FIX ---
     async function start() {
-        document.getElementById("ui-boot").style.display = "none";
+        document.getElementById("ui-gate").style.display = "none";
         setupAudio();
         
         const stream = canvas.captureStream(60);
@@ -179,37 +231,34 @@
         state.recorder.ondataavailable = e => { if(e.data.size > 0) state.chunks.push(e.data); };
         
         state.recorder.onstop = () => {
-            dlStatus.innerText = "PACKAGING TRANSMISSION...";
             const blob = new Blob(state.chunks, { type: 'video/webm' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
-            a.href = url;
-            a.download = `STATION9_COMPLIANCE_${state.keyword}.webm`;
             document.body.appendChild(a);
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `STATION9_RITUAL_${state.keyword.replace(/ /g,'_')}.webm`;
             a.click();
-            setTimeout(() => {
-                document.body.removeChild(a);
-                window.location.reload();
-            }, 5000); // Give plenty of time for the download to trigger
+            setTimeout(() => { window.location.reload(); }, 5000);
         };
 
         state.recorder.start(100);
         state.active = true;
         render();
 
-        const msg = new SpeechSynthesisUtterance("Welcome to the Station 9 Compliance Module. Regarding " + state.keyword + ". This information is mandatory for your survival. Do not blink.");
-        msg.lang = 'en-US'; msg.pitch = 0.5; msg.rate = 0.85;
-        window.speechSynthesis.speak(msg);
+        const utter = new SpeechSynthesisUtterance(`Ritual sequence initiated. The topic is ${state.keyword}. Observe the polaroids carefully. The fiend is currently ${Math.floor(state.prox * 100)} percent manifested.`);
+        utter.lang = 'en-US'; utter.pitch = 0.1; utter.rate = 0.75;
+        window.speechSynthesis.speak(utter);
     }
 
     function finish() {
         state.active = false;
         state.recorder.stop();
-        dlStatus.innerText = "UPLOADING TO ARCHIVE...";
     }
 
     init();
     startBtn.addEventListener("click", start);
+
 })();
 </script>
 </body>
