@@ -2,42 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CHANNEL_9 // ENTITY_BREACH_V16</title>
+    <title>CHANNEL_9 // THE_GLASS_BARRIER</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=VT323&display=swap');
-        body, html { margin: 0; padding: 0; background: #000; overflow: hidden; cursor: none; }
-        #viewport { position: relative; width: 100vw; height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.2) saturate(0.7) brightness(1.1); image-rendering: pixelated; }
+        body, html { margin: 0; padding: 0; background: #020202; overflow: hidden; cursor: none; }
+        #viewport { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.3) saturate(0.6) brightness(1.1); image-rendering: pixelated; }
 
-        /* CRT OVERLAYS */
-        .vhs-fx { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%),
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.05), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.05));
-            background-size: 100% 4px, 4px 100%; opacity: 0.8; }
-        .glitch-bar { position: absolute; width: 100%; height: 2px; background: rgba(255,255,255,0.4); z-index: 11; opacity: 0.5; pointer-events: none; }
+        /* PHYSICAL DISTORTION */
+        .vhs-mesh { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+            background-size: 100% 2px, 2px 100%; }
         
-        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0000AA; z-index: 100; color: #fff; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .terminal { font-size: 1.8rem; text-align: left; max-width: 800px; padding: 20px; border: 2px solid #fff; }
-        button { background: #fff; color: #0000AA; border: none; padding: 20px 60px; font-family: 'Archivo Black', sans-serif; font-size: 1.5rem; cursor: pointer; margin-top: 30px; display: none; }
-        #progress { position: absolute; bottom: 0; left: 0; height: 10px; background: #f00; width: 0%; z-index: 200; box-shadow: 0 0 20px #f00; }
+        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; color: #0f0; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .monitor { width: 600px; padding: 20px; border: 1px solid #0f0; box-shadow: 0 0 15px #0f0; }
+        button { background: #0f0; color: #000; border: none; padding: 15px 40px; font-family: 'Archivo Black', sans-serif; font-size: 1.2rem; cursor: pointer; margin-top: 20px; display: none; }
+        #prog { position: absolute; bottom: 0; left: 0; height: 4px; background: #0f0; width: 0%; z-index: 200; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="terminal" id="term">
-        > C:\SEPHIROTH\BREACH_INIT.EXE...<br>
-        > SCANNING PHOSPHOR FREQUENCIES... [OK]<br>
-        > DETECTING NON-HUMAN RESIDUE... [WARNING]<br>
-        > THE FIEND IS TUNED IN.
+    <div class="monitor">
+        [SYS] SIGNAL_RECOVERY: 88%...<br>
+        [SYS] SOURCE: UNKNOWN (VHF_BAND_4)<br>
+        [SYS] WARNING: THE GLASS IS THINNING.<br>
+        [SYS] DO NOT RESPOND TO THE ANCHOR.
     </div>
-    <button id="start-btn">ACCEPT TRANSMISSION</button>
+    <button id="start-btn">OBSERVE FEED</button>
 </div>
 
 <div id="viewport">
-    <div class="vhs-fx"></div>
-    <div class="glitch-bar" id="gb"></div>
-    <div id="progress"></div>
+    <div class="vhs-mesh"></div>
+    <div id="prog"></div>
     <canvas id="c"></canvas>
 </div>
 
@@ -48,8 +46,7 @@
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false });
     const startBtn = document.getElementById("start-btn");
-    const progressLine = document.getElementById("progress");
-    const gb = document.getElementById("gb");
+    const prog = document.getElementById("prog");
 
     canvas.width = 1280;
     canvas.height = 720;
@@ -61,33 +58,41 @@
         keyword: "",
         wiki: "",
         images: [],
-        proximity: 0, // 0 to 1, increases difficulty/horror
+        prox: 0,
         recorder: null,
         chunks: [],
         audio: { ctx: null, dest: null, master: null }
     };
 
-    const CONCEPTS = ["Eschaton", "Liminality", "Tulpas", "Nervous_System", "Ectoplasm", "Paralysis", "Cold_War"];
-    const CREEPY_PHRASES = ["HE IS WITHIN THE SCANLINES", "DO NOT LOOK AT THE ANCHOR", "YOUR EYES ARE RECEIVERS", "THE PHOSPHOR IS BLEEDING", "PARITY SOUL MISMATCH"];
-    const JARGON = ["0x88_GHOST_PTR", "NULL_POSSESSION", "KERNEL_PANIC_RITUAL", "SPECTRAL_DITHER_ERR"];
+    const LORE_TEXT = [
+        "HE HAS PASSED THE FIRST GATE.",
+        "THE BROADCAST IS THE BAIT.",
+        "CAN YOU HEAR THE FOOTSTEPS IN THE STATIC?",
+        "THE GLASS IS THE ONLY BARRIER.",
+        "HE IS BEHIND THE PLASTIC CASING."
+    ];
+
+    const JARGON = ["0xGHOST_VAL", "SIG_STRENGTH_ERR", "VOID_RECURSION", "DEATH_ALLOC_NULL"];
 
     async function init() {
-        state.keyword = CONCEPTS[Math.floor(Math.random() * CONCEPTS.length)];
+        const concepts = ["Liminality", "Necrosis", "Totalitarianism", "Entropy", "Obsolescence"];
+        state.keyword = concepts[Math.floor(Math.random() * concepts.length)];
         try {
             const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${state.keyword}`);
             const d = await r.json();
-            state.wiki = (d.extract || "NO SIGNAL").toUpperCase();
+            state.wiki = (d.extract || "SIGNAL LOST").toUpperCase();
         } catch { state.wiki = "THE VOID HAS REPLACED THE ARCHIVE."; }
 
         for(let i=0; i<4; i++) {
             const img = new Image();
             img.crossOrigin = "anonymous";
-            img.src = `https://picsum.photos/seed/${Math.random()}/1280/720?grayscale&blur=1`;
+            img.src = `https://picsum.photos/seed/${Math.random()}/800/600?grayscale`;
             state.images.push(img);
         }
         startBtn.style.display = "block";
     }
 
+    // --- MARTIAL ATONAL MUSIC ---
     function setupAudio() {
         const AC = window.AudioContext || window.webkitAudioContext;
         state.audio.ctx = new AC();
@@ -96,149 +101,128 @@
         state.audio.master.connect(state.audio.dest);
         state.audio.master.connect(state.audio.ctx.destination);
 
-        // Sub Drone (The Heartbeat)
-        const drone = state.audio.ctx.createOscillator();
-        drone.type = 'sine';
-        drone.frequency.value = 40;
-        const dG = state.audio.ctx.createGain();
-        dG.gain.value = 0.2;
-        drone.connect(dG).connect(state.audio.master);
-        drone.start();
+        const sr = state.audio.ctx.sampleRate;
 
-        // Ghost Melody (FM Synthesis)
+        // Martial Beat Loop
         setInterval(() => {
             if(!state.active) return;
-            const carrier = state.audio.ctx.createOscillator();
-            const modulator = state.audio.ctx.createOscillator();
-            const modGain = state.audio.ctx.createGain();
-            const env = state.audio.ctx.createGain();
+            // Distorted Kick
+            const kick = state.audio.ctx.createOscillator();
+            const kg = state.audio.ctx.createGain();
+            kick.frequency.setValueAtTime(60, state.audio.ctx.currentTime);
+            kick.frequency.exponentialRampToValueAtTime(0.01, state.audio.ctx.currentTime + 0.5);
+            kg.gain.setValueAtTime(0.3, state.audio.ctx.currentTime);
+            kg.gain.linearRampToValueAtTime(0, state.audio.ctx.currentTime + 0.4);
+            kick.connect(kg).connect(state.audio.master);
+            kick.start(); kick.stop(state.audio.ctx.currentTime + 0.5);
+        }, 600); // Off-beat 4/4
 
-            carrier.type = 'sawtooth';
-            modulator.type = 'square';
-            
-            const freq = 50 + (Math.random() * 200);
-            carrier.frequency.value = freq;
-            modulator.frequency.value = freq * state.proximity * 10;
-            modGain.gain.value = 100 * state.proximity;
-
-            modulator.connect(modGain).connect(carrier.frequency);
-            carrier.connect(env).connect(state.audio.master);
-
-            env.gain.setValueAtTime(0, state.audio.ctx.currentTime);
-            env.gain.linearRampToValueAtTime(0.1 * state.proximity, state.audio.ctx.currentTime + 0.1);
-            env.gain.exponentialRampToValueAtTime(0.001, state.audio.ctx.currentTime + 1.5);
-
-            carrier.start(); carrier.stop(state.audio.ctx.currentTime + 1.6);
-            modulator.start(); modulator.stop(state.audio.ctx.currentTime + 1.6);
-        }, 1000 - (state.proximity * 800));
+        // Atonal Drone
+        const drones = [113, 239, 307]; // Prime numbers for atonality
+        drones.forEach(f => {
+            const osc = state.audio.ctx.createOscillator();
+            const g = state.audio.ctx.createGain();
+            osc.frequency.value = f;
+            g.gain.value = 0.05;
+            osc.connect(g).connect(state.audio.master);
+            osc.start();
+        });
     }
 
-    function drawFiend(x, y, scale) {
+    function drawFiend(alpha) {
         ctx.save();
+        ctx.globalAlpha = alpha;
+        // The fiend is a crawling silhouette
+        const x = 400 + Math.sin(state.frame * 0.05) * 20;
+        const y = 350 + (state.prox * 100); // Slowly crawling down/forward
         ctx.translate(x, y);
-        ctx.scale(scale * (1 + Math.sin(state.frame * 0.1) * 0.05), scale);
+        ctx.scale(0.5 + state.prox, 0.5 + state.prox);
         
-        // Procedural Shadow Mesh
-        ctx.fillStyle = "rgba(0,0,0,0.95)";
+        ctx.fillStyle = "#000";
         ctx.beginPath();
-        for(let i=0; i<8; i++) {
-            const ang = (i/8) * Math.PI * 2;
-            const r = 100 + (Math.random() * 20 * state.proximity);
-            ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r);
-        }
-        ctx.closePath(); ctx.fill();
+        ctx.moveTo(-50, 0); ctx.quadraticCurveTo(0, -150, 50, 0); // Head/Shoulders
+        ctx.fill();
 
-        // Burning Eyes
+        // Glowing white pin-prick eyes
         ctx.fillStyle = "#fff";
-        ctx.shadowBlur = 15; ctx.shadowColor = "#fff";
-        const blink = Math.random() > 0.02 ? 1 : 0;
-        ctx.fillRect(-40, -20, 30 * blink, 3);
-        ctx.fillRect(10, -20, 30 * blink, 3);
+        const blink = Math.random() > 0.03 ? 1 : 0;
+        ctx.fillRect(-15, -60, 4 * blink, 4);
+        ctx.fillRect(15, -60, 4 * blink, 4);
         ctx.restore();
     }
 
     function render() {
         if(!state.active) return;
         state.frame++;
-        state.proximity = state.frame / state.maxFrames;
-        progressLine.style.width = (state.proximity * 100) + "%";
-        gb.style.top = (Math.random() * 100) + "%";
+        state.prox = state.frame / state.maxFrames;
+        prog.style.width = (state.prox * 100) + "%";
 
-        // Draw Deep Blue Background
-        ctx.fillStyle = `rgb(0, 0, ${Math.floor(80 - (state.proximity * 80))})`;
+        // Bruised Background
+        const r = Math.floor(state.prox * 40);
+        const b = Math.floor(80 - (state.prox * 40));
+        ctx.fillStyle = `rgb(${r}, 0, ${b})`;
         ctx.fillRect(0,0,1280,720);
 
-        // --- LAYOUT ---
-        if(state.frame % 600 < 400) {
-            // "REPORTING" MODE
-            ctx.fillStyle = "#000"; ctx.fillRect(100, 100, 600, 400);
-            ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.strokeRect(100, 100, 600, 400);
-
-            // Zooming Image Anomaly
-            const curImg = state.images[Math.floor(state.frame/600) % 4];
-            if(curImg.complete) {
-                ctx.save();
-                ctx.beginPath(); ctx.rect(800, 100, 400, 300); ctx.clip();
-                const zoom = 1 + (state.frame % 600) * 0.002;
-                ctx.drawImage(curImg, 800 - (200 * (zoom-1)), 100 - (150 * (zoom-1)), 400 * zoom, 300 * zoom);
-                ctx.restore();
-                ctx.strokeRect(800, 100, 400, 300);
-            }
-
-            // Lower Third
-            ctx.fillStyle = "#900"; ctx.fillRect(50, 520, 800, 90);
-            ctx.fillStyle = "#fff"; ctx.font = "bold 40px 'Archivo Black'";
-            ctx.fillText("REPORT: " + state.keyword, 80, 580);
+        // Slide Cycles
+        const cycle = state.frame % 800;
+        if(cycle < 400) {
+            // "THE ANCHOR"
+            ctx.fillStyle = "#000"; ctx.fillRect(150, 100, 500, 350);
+            ctx.strokeStyle = "#fff"; ctx.strokeRect(150, 100, 500, 350);
             
-            // The Fiend (Growing Proximity)
-            drawFiend(400, 350, 0.8 + (state.proximity * 0.5));
-        } else {
-            // "SIGNAL LOST" MODE
-            ctx.fillStyle = "#000"; ctx.fillRect(0,0,1280,720);
-            ctx.fillStyle = "#fff"; ctx.font = "20px 'VT323'";
-            const lines = state.wiki.split(" ");
-            let currentLine = "";
-            let y = 100;
-            lines.forEach(word => {
-                if(currentLine.length + word.length > 60) {
-                    ctx.fillText(currentLine, 100, y);
-                    y += 30; currentLine = "";
-                }
-                currentLine += word + " ";
-            });
-            ctx.fillText(currentLine, 100, y);
+            // The Fiend hides in the Anchor Box
+            drawFiend(state.prox * 0.7);
 
-            // Jargon Interjections
-            if(Math.random() > 0.95) {
-                ctx.fillStyle = "#f00";
-                ctx.fillText(JARGON[Math.floor(Math.random()*JARGON.length)], Math.random()*800, Math.random()*700);
+            // Lower Third (Flickering)
+            if(Math.random() > 0.05) {
+                ctx.fillStyle = "#500"; ctx.fillRect(50, 500, 800, 80);
+                ctx.fillStyle = "#fff"; ctx.font = "bold 35px Archivo Black";
+                ctx.fillText(`CHANNEL 9 // ${state.keyword}`, 80, 555);
             }
+        } else {
+            // "DISTORTED ARCHIVE"
+            const img = state.images[Math.floor(state.frame/400)%4];
+            if(img.complete) {
+                ctx.save();
+                ctx.translate(640, 360);
+                const zoom = 1 + (state.prox * 0.5);
+                ctx.scale(zoom, zoom);
+                // Pixel sort effect (fake)
+                if(Math.random() > 0.9) ctx.translate(Math.random()*10, 0);
+                ctx.drawImage(img, -400, -300, 800, 600);
+                ctx.restore();
+            }
+
+            // Lore Text Overlay
+            ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0, 300, 1280, 120);
+            ctx.fillStyle = "#fff"; ctx.font = "40px VT323"; ctx.textAlign = "center";
+            ctx.fillText(LORE_TEXT[Math.floor(state.frame/200)%5], 640, 370);
         }
 
-        // Ticker with Easter Egg
+        // Ticker
         ctx.fillStyle = "#000"; ctx.fillRect(0, 660, 1280, 60);
-        ctx.fillStyle = "#FFFF00"; ctx.font = "25px 'VT323'";
-        const tickerMsg = `${state.wiki} | [DECODE: 49 20 41 4D 20 48 45 52 45] | ${CREEPY_PHRASES[Math.floor(state.frame/100)%5]}`;
-        ctx.fillText(tickerMsg, 1280 - (state.frame * 6 % 6000), 700);
+        ctx.fillStyle = "#ff0"; ctx.font = "24px VT323"; ctx.textAlign = "left";
+        const tickerMsg = `[STATION_9] : ${state.wiki} | ${JARGON[Math.floor(state.frame/100)%4]} | [DECODE: HE_IS_WATCHING]`;
+        ctx.fillText(tickerMsg, 1280 - (state.frame*7 % 6000), 700);
 
-        // Recursive Tree
-        const treeSway = Math.sin(state.frame * 0.05) * 0.2;
-        ctx.save(); ctx.translate(1150, 600); 
-        ctx.strokeStyle = `rgba(255,255,255,${0.5 + state.proximity*0.5})`;
+        // Subliminal Tree
+        ctx.globalAlpha = 0.1;
+        ctx.save(); ctx.translate(1100, 200);
         function drawTree(l, d) {
             if(d<=0) return;
-            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-l); ctx.stroke();
-            ctx.save(); ctx.translate(0,-l); ctx.rotate(0.5 + treeSway); drawTree(l*0.75, d-1); ctx.restore();
-            ctx.save(); ctx.translate(0,-l); ctx.rotate(-0.5 - treeSway); drawTree(l*0.75, d-1); ctx.restore();
+            ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-l); ctx.stroke();
+            ctx.translate(0,-l);
+            ctx.save(); ctx.rotate(0.5); drawTree(l*0.8, d-1); ctx.restore();
+            ctx.save(); ctx.rotate(-0.5); drawTree(l*0.8, d-1); ctx.restore();
         }
-        drawTree(40, 6); ctx.restore();
+        drawTree(30, 5); ctx.restore(); ctx.globalAlpha = 1.0;
 
-        // Glitch Overlays
-        if(Math.random() > 0.98 - (state.proximity * 0.05)) {
-            const h = Math.random() * 50;
-            ctx.drawImage(canvas, 0, Math.random()*720, 1280, h, Math.random()*40-20, Math.random()*720, 1280, h);
-            if(state.proximity > 0.8 && Math.random() > 0.9) {
-                ctx.fillStyle = "#fff"; ctx.fillRect(0,0,1280,720); // Jumpscare Flash
+        // Glitch & Jumpscare
+        if(Math.random() > 0.99 - (state.prox * 0.02)) {
+            const h = Math.random() * 100;
+            ctx.drawImage(canvas, 0, Math.random()*720, 1280, h, Math.random()*100-50, Math.random()*720, 1280, h);
+            if(state.prox > 0.9) {
+                ctx.fillStyle = "#fff"; ctx.fillRect(0,0,1280,720); // FINAL BLINDING
             }
         }
 
@@ -258,9 +242,9 @@
         state.active = true;
         render();
 
-        const utter = new SpeechSynthesisUtterance(`Warning. Public Service Announcement. The ${state.keyword} threshold has been breached. He is closer than the phosphor suggests.`);
-        utter.pitch = 0.2; utter.rate = 0.75;
-        window.speechSynthesis.speak(utter);
+        const msg = new SpeechSynthesisUtterance("The following is a mandatory announcement. The glass is thin. He is no longer in the signal. He is in the room.");
+        msg.pitch = 0.1; msg.rate = 0.8;
+        window.speechSynthesis.speak(msg);
     }
 
     function finish() { state.active = false; state.recorder.stop(); }
@@ -269,7 +253,7 @@
         const b = new Blob(state.chunks, { type: 'video/webm' });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(b);
-        a.download = `STATION9_BREACH_${state.keyword}.webm`;
+        a.download = `STATION9_THE_BARRIER_${state.keyword}.webm`;
         a.click();
         setTimeout(() => window.location.reload(), 3000);
     }
