@@ -2,40 +2,39 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CHANNEL_9 // THE_GLASS_BARRIER</title>
+    <title>STATION_9 // OMEGA_V18</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=VT323&display=swap');
-        body, html { margin: 0; padding: 0; background: #020202; overflow: hidden; cursor: none; }
+        body, html { margin: 0; padding: 0; background: #010101; overflow: hidden; cursor: none; }
         #viewport { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.3) saturate(0.6) brightness(1.1); image-rendering: pixelated; }
-
-        /* PHYSICAL DISTORTION */
-        .vhs-mesh { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%),
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
-            background-size: 100% 2px, 2px 100%; }
+        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.4) saturate(0.5) brightness(1.2) blur(0.3px); image-rendering: pixelated; }
         
-        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; color: #0f0; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .monitor { width: 600px; padding: 20px; border: 1px solid #0f0; box-shadow: 0 0 15px #0f0; }
-        button { background: #0f0; color: #000; border: none; padding: 15px 40px; font-family: 'Archivo Black', sans-serif; font-size: 1.2rem; cursor: pointer; margin-top: 20px; display: none; }
-        #prog { position: absolute; bottom: 0; left: 0; height: 4px; background: #0f0; width: 0%; z-index: 200; }
+        /* VHS ARTIFACTS */
+        .vhs-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 3px, 3px 100%; }
+        .tracking-glitch { position: absolute; width: 100%; height: 5px; background: rgba(255,255,255,0.2); filter: blur(10px); z-index: 11; }
+        
+        #ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; color: #f00; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .boot-box { border: 1px solid #f00; padding: 30px; box-shadow: 0 0 20px #500; background: #050000; }
+        button { background: #f00; color: #000; border: none; padding: 15px 50px; font-family: 'Archivo Black', sans-serif; cursor: pointer; margin-top: 20px; display: none; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <div class="monitor">
-        [SYS] SIGNAL_RECOVERY: 88%...<br>
-        [SYS] SOURCE: UNKNOWN (VHF_BAND_4)<br>
-        [SYS] WARNING: THE GLASS IS THINNING.<br>
-        [SYS] DO NOT RESPOND TO THE ANCHOR.
+    <div class="boot-box" id="log">
+        [SYSTEM] SEPHIROTH_V18_OMEGA ACTIVE<br>
+        [INIT] GENERATING ENTROPY SEED...<br>
+        [WARN] THE FIEND IS HUNGRY.
     </div>
-    <button id="start-btn">OBSERVE FEED</button>
+    <button id="start-btn">DECODE TRANSMISSION</button>
 </div>
 
 <div id="viewport">
-    <div class="vhs-mesh"></div>
-    <div id="prog"></div>
+    <div class="vhs-overlay"></div>
+    <div class="tracking-glitch" id="tg"></div>
     <canvas id="c"></canvas>
 </div>
 
@@ -46,7 +45,8 @@
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d", { alpha: false });
     const startBtn = document.getElementById("start-btn");
-    const prog = document.getElementById("prog");
+    const logBox = document.getElementById("log");
+    const tg = document.getElementById("tg");
 
     canvas.width = 1280;
     canvas.height = 720;
@@ -54,45 +54,64 @@
     let state = {
         active: false,
         frame: 0,
-        maxFrames: 2400, // 40 Seconds
+        maxFrames: 2700, // ~45 Seconds
         keyword: "",
         wiki: "",
         images: [],
-        prox: 0,
+        layout: Math.random(),
+        colors: { bg: "", ui: "" },
+        sigil: [],
         recorder: null,
         chunks: [],
         audio: { ctx: null, dest: null, master: null }
     };
 
-    const LORE_TEXT = [
-        "HE HAS PASSED THE FIRST GATE.",
-        "THE BROADCAST IS THE BAIT.",
-        "CAN YOU HEAR THE FOOTSTEPS IN THE STATIC?",
-        "THE GLASS IS THE ONLY BARRIER.",
-        "HE IS BEHIND THE PLASTIC CASING."
-    ];
+    // --- 1. THE MILLION-OPTION BRAIN ---
+    const PREFIX = ["Subliminal", "Quantum", "Genetic", "Hysterical", "Atonal", "Necrotic", "Liminal", "Recursive", "Synthetic", "Ethereal", "Fungal", "Nuclear", "Occult", "Memetic", "Fractal"];
+    const ROOT = ["Void", "Flesh", "Signal", "Gateway", "Organism", "Protocol", "Constraint", "Archive", "Toxin", "Aperture", "Frequency", "Marrow", "Vessel", "Lattice"];
+    const SUFFIX = ["Ascension", "Decay", "Bleed", "Saturation", "Collapse", "Convergence", "Breach", "Nullification", "Stasis", "Transfusion", "Erosion"];
 
-    const JARGON = ["0xGHOST_VAL", "SIG_STRENGTH_ERR", "VOID_RECURSION", "DEATH_ALLOC_NULL"];
+    function generateKeyword() {
+        const p = PREFIX[Math.floor(Math.random() * PREFIX.length)];
+        const r = ROOT[Math.floor(Math.random() * ROOT.length)];
+        const s = SUFFIX[Math.floor(Math.random() * SUFFIX.length)];
+        return `${p}_${r}_${s}`;
+    }
+
+    // --- 2. PROCEDURAL CULT LOGO ---
+    function generateSigil() {
+        let pts = [];
+        for(let i=0; i<6; i++) pts.push({x: Math.random()*100, y: Math.random()*100});
+        return pts;
+    }
 
     async function init() {
-        const concepts = ["Liminality", "Necrosis", "Totalitarianism", "Entropy", "Obsolescence"];
-        state.keyword = concepts[Math.floor(Math.random() * concepts.length)];
+        state.keyword = generateKeyword();
+        state.sigil = generateSigil();
+        
+        // Randomize session palette
+        const hue = Math.random() * 360;
+        state.colors.bg = `hsl(${hue}, 40%, 10%)`;
+        state.colors.ui = `hsl(${hue}, 100%, 50%)`;
+
         try {
-            const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${state.keyword}`);
+            const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${ROOT[Math.floor(Math.random()*ROOT.length)]}`);
             const d = await r.json();
             state.wiki = (d.extract || "SIGNAL LOST").toUpperCase();
-        } catch { state.wiki = "THE VOID HAS REPLACED THE ARCHIVE."; }
+        } catch { state.wiki = "THE DATA STREAM HAS BEEN CONSUMED BY THE VOID."; }
 
-        for(let i=0; i<4; i++) {
+        for(let i=0; i<5; i++) {
             const img = new Image();
             img.crossOrigin = "anonymous";
             img.src = `https://picsum.photos/seed/${Math.random()}/800/600?grayscale`;
             state.images.push(img);
         }
+
+        logBox.innerHTML += `<br>[OK] ANCHOR: ${state.keyword}<br>[OK] SIGIL GENERATED<br>[!] READY.`;
         startBtn.style.display = "block";
     }
 
-    // --- MARTIAL ATONAL MUSIC ---
+    // --- 3. MARTIAL ATONAL AUDIO ---
     function setupAudio() {
         const AC = window.AudioContext || window.webkitAudioContext;
         state.audio.ctx = new AC();
@@ -101,129 +120,120 @@
         state.audio.master.connect(state.audio.dest);
         state.audio.master.connect(state.audio.ctx.destination);
 
-        const sr = state.audio.ctx.sampleRate;
-
-        // Martial Beat Loop
+        // Martial Industrial Pulse
         setInterval(() => {
             if(!state.active) return;
-            // Distorted Kick
-            const kick = state.audio.ctx.createOscillator();
-            const kg = state.audio.ctx.createGain();
-            kick.frequency.setValueAtTime(60, state.audio.ctx.currentTime);
-            kick.frequency.exponentialRampToValueAtTime(0.01, state.audio.ctx.currentTime + 0.5);
-            kg.gain.setValueAtTime(0.3, state.audio.ctx.currentTime);
-            kg.gain.linearRampToValueAtTime(0, state.audio.ctx.currentTime + 0.4);
-            kick.connect(kg).connect(state.audio.master);
-            kick.start(); kick.stop(state.audio.ctx.currentTime + 0.5);
-        }, 600); // Off-beat 4/4
-
-        // Atonal Drone
-        const drones = [113, 239, 307]; // Prime numbers for atonality
-        drones.forEach(f => {
             const osc = state.audio.ctx.createOscillator();
             const g = state.audio.ctx.createGain();
-            osc.frequency.value = f;
-            g.gain.value = 0.05;
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(50, state.audio.ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, state.audio.ctx.currentTime + 0.3);
+            g.gain.setValueAtTime(0.4, state.audio.ctx.currentTime);
+            g.gain.linearRampToValueAtTime(0, state.audio.ctx.currentTime + 0.3);
             osc.connect(g).connect(state.audio.master);
-            osc.start();
+            osc.start(); osc.stop(state.audio.ctx.currentTime + 0.3);
+        }, 500);
+
+        // Atonal Horror Layer
+        const tones = [130.81, 185.00, 220.00, 311.13]; // Tritones and dissonants
+        tones.forEach(f => {
+            const o = state.audio.ctx.createOscillator();
+            const g = state.audio.ctx.createGain();
+            o.frequency.value = f + (Math.random()*2);
+            g.gain.value = 0.03;
+            o.connect(g).connect(state.audio.master);
+            o.start();
         });
+    }
+
+    // --- 4. VISUAL RENDER ENGINE ---
+    function drawSigil(x, y, size) {
+        ctx.save(); ctx.translate(x, y);
+        ctx.strokeStyle = state.colors.ui; ctx.lineWidth = 2;
+        ctx.beginPath();
+        state.sigil.forEach((p, i) => {
+            ctx.lineTo(p.x * (size/100), p.y * (size/100));
+        });
+        ctx.closePath(); ctx.stroke();
+        ctx.restore();
     }
 
     function drawFiend(alpha) {
         ctx.save();
         ctx.globalAlpha = alpha;
-        // The fiend is a crawling silhouette
-        const x = 400 + Math.sin(state.frame * 0.05) * 20;
-        const y = 350 + (state.prox * 100); // Slowly crawling down/forward
-        ctx.translate(x, y);
-        ctx.scale(0.5 + state.prox, 0.5 + state.prox);
-        
         ctx.fillStyle = "#000";
+        const jitter = Math.sin(state.frame * 0.2) * 5;
+        const prox = state.frame / state.maxFrames;
+        ctx.translate(640 + jitter, 360 + (prox * 200));
+        ctx.scale(1 + prox * 2, 1 + prox * 2);
+        
+        // Shadow Body
         ctx.beginPath();
-        ctx.moveTo(-50, 0); ctx.quadraticCurveTo(0, -150, 50, 0); // Head/Shoulders
+        ctx.moveTo(-100, 200); ctx.lineTo(0, -150); ctx.lineTo(100, 200);
         ctx.fill();
-
-        // Glowing white pin-prick eyes
+        
+        // Glowing Slits
         ctx.fillStyle = "#fff";
-        const blink = Math.random() > 0.03 ? 1 : 0;
-        ctx.fillRect(-15, -60, 4 * blink, 4);
-        ctx.fillRect(15, -60, 4 * blink, 4);
+        ctx.shadowBlur = 15; ctx.shadowColor = "#fff";
+        ctx.fillRect(-20, -80, 40, 2);
         ctx.restore();
     }
 
     function render() {
         if(!state.active) return;
         state.frame++;
-        state.prox = state.frame / state.maxFrames;
-        prog.style.width = (state.prox * 100) + "%";
+        const p = state.frame / state.maxFrames;
+        tg.style.top = (Math.random() * 100) + "%";
 
-        // Bruised Background
-        const r = Math.floor(state.prox * 40);
-        const b = Math.floor(80 - (state.prox * 40));
-        ctx.fillStyle = `rgb(${r}, 0, ${b})`;
+        // Draw Background
+        ctx.fillStyle = state.colors.bg;
         ctx.fillRect(0,0,1280,720);
 
-        // Slide Cycles
-        const cycle = state.frame % 800;
-        if(cycle < 400) {
-            // "THE ANCHOR"
-            ctx.fillStyle = "#000"; ctx.fillRect(150, 100, 500, 350);
-            ctx.strokeStyle = "#fff"; ctx.strokeRect(150, 100, 500, 350);
+        // Random Layout Shifts
+        const layoutCycle = Math.floor(state.frame / 400) % 3;
+        
+        if(layoutCycle === 0) {
+            // "THE ANCHOR BOX"
+            ctx.fillStyle = "#000"; ctx.fillRect(100, 100, 600, 400);
+            ctx.strokeStyle = "#fff"; ctx.strokeRect(100, 100, 600, 400);
+            drawFiend(p * 0.6);
             
-            // The Fiend hides in the Anchor Box
-            drawFiend(state.prox * 0.7);
-
-            // Lower Third (Flickering)
-            if(Math.random() > 0.05) {
-                ctx.fillStyle = "#500"; ctx.fillRect(50, 500, 800, 80);
-                ctx.fillStyle = "#fff"; ctx.font = "bold 35px Archivo Black";
-                ctx.fillText(`CHANNEL 9 // ${state.keyword}`, 80, 555);
-            }
-        } else {
-            // "DISTORTED ARCHIVE"
-            const img = state.images[Math.floor(state.frame/400)%4];
+            ctx.fillStyle = "#700"; ctx.fillRect(50, 520, 700, 100);
+            ctx.fillStyle = "#fff"; ctx.font = "bold 45px 'Archivo Black'";
+            ctx.fillText("URGENT: " + state.keyword, 80, 585);
+        } else if (layoutCycle === 1) {
+            // "DATA OVERLAY"
+            const img = state.images[Math.floor(state.frame/200) % 5];
             if(img.complete) {
-                ctx.save();
-                ctx.translate(640, 360);
-                const zoom = 1 + (state.prox * 0.5);
-                ctx.scale(zoom, zoom);
-                // Pixel sort effect (fake)
-                if(Math.random() > 0.9) ctx.translate(Math.random()*10, 0);
-                ctx.drawImage(img, -400, -300, 800, 600);
-                ctx.restore();
+                const z = 1 + (p * 0.4);
+                ctx.save(); ctx.translate(640, 360); ctx.scale(z, z);
+                ctx.drawImage(img, -400, -300, 800, 600); ctx.restore();
             }
-
-            // Lore Text Overlay
-            ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0, 300, 1280, 120);
-            ctx.fillStyle = "#fff"; ctx.font = "40px VT323"; ctx.textAlign = "center";
-            ctx.fillText(LORE_TEXT[Math.floor(state.frame/200)%5], 640, 370);
+            ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(0, 0, 1280, 720);
+            ctx.fillStyle = "#fff"; ctx.font = "20px 'VT323'";
+            const lines = state.wiki.match(/.{1,80}(\s|$)/g) || [];
+            lines.slice(0, 25).forEach((l, i) => ctx.fillText(l, 100, 100 + (i*22)));
+        } else {
+            // "THE VOID / SIGIL"
+            ctx.fillStyle = "#000"; ctx.fillRect(0,0,1280,720);
+            drawSigil(540, 260, 200);
+            ctx.fillStyle = "#fff"; ctx.font = "30px 'VT323'"; ctx.textAlign = "center";
+            ctx.fillText("HE IS BEHIND THE GLASS", 640, 550);
+            ctx.fillText("[DECODE: 01101000 01101001]", 640, 600);
         }
 
-        // Ticker
-        ctx.fillStyle = "#000"; ctx.fillRect(0, 660, 1280, 60);
-        ctx.fillStyle = "#ff0"; ctx.font = "24px VT323"; ctx.textAlign = "left";
-        const tickerMsg = `[STATION_9] : ${state.wiki} | ${JARGON[Math.floor(state.frame/100)%4]} | [DECODE: HE_IS_WATCHING]`;
-        ctx.fillText(tickerMsg, 1280 - (state.frame*7 % 6000), 700);
+        // Global Ticker
+        ctx.fillStyle = "#000"; ctx.fillRect(0, 670, 1280, 50);
+        ctx.fillStyle = "#ff0"; ctx.font = "20px 'VT323'"; ctx.textAlign = "left";
+        ctx.fillText(`[STATION_9] ${state.keyword} // ${state.wiki} // [EASTER_EGG: CHECK_CONSOLE_LOG]`, 1280 - (state.frame*8 % 8000), 705);
 
-        // Subliminal Tree
-        ctx.globalAlpha = 0.1;
-        ctx.save(); ctx.translate(1100, 200);
-        function drawTree(l, d) {
-            if(d<=0) return;
-            ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-l); ctx.stroke();
-            ctx.translate(0,-l);
-            ctx.save(); ctx.rotate(0.5); drawTree(l*0.8, d-1); ctx.restore();
-            ctx.save(); ctx.rotate(-0.5); drawTree(l*0.8, d-1); ctx.restore();
-        }
-        drawTree(30, 5); ctx.restore(); ctx.globalAlpha = 1.0;
+        // Logos & Symbols
+        drawSigil(1150, 50, 80);
 
-        // Glitch & Jumpscare
-        if(Math.random() > 0.99 - (state.prox * 0.02)) {
-            const h = Math.random() * 100;
-            ctx.drawImage(canvas, 0, Math.random()*720, 1280, h, Math.random()*100-50, Math.random()*720, 1280, h);
-            if(state.prox > 0.9) {
-                ctx.fillStyle = "#fff"; ctx.fillRect(0,0,1280,720); // FINAL BLINDING
-            }
+        // Horror Artifacts
+        if(Math.random() > 0.98 - (p * 0.02)) {
+            const h = Math.random() * 80;
+            ctx.drawImage(canvas, 0, Math.random()*720, 1280, h, Math.random()*60-30, Math.random()*720, 1280, h);
         }
 
         if(state.frame < state.maxFrames) requestAnimationFrame(render);
@@ -232,6 +242,7 @@
 
     async function start() {
         document.getElementById("ui").style.display = "none";
+        console.log("%c [EASTER EGG]: The Fiend's true name is " + state.keyword.split("_")[1], "color: red; font-size: 20px;");
         setupAudio();
         const stream = canvas.captureStream(60);
         const combined = new MediaStream([...stream.getVideoTracks(), ...state.audio.dest.stream.getAudioTracks()]);
@@ -242,8 +253,8 @@
         state.active = true;
         render();
 
-        const msg = new SpeechSynthesisUtterance("The following is a mandatory announcement. The glass is thin. He is no longer in the signal. He is in the room.");
-        msg.pitch = 0.1; msg.rate = 0.8;
+        const msg = new SpeechSynthesisUtterance("Transmission received. The " + state.keyword + " event is now unavoidable. Do not look away from the sigil.");
+        msg.pitch = 0.1; msg.rate = 0.7;
         window.speechSynthesis.speak(msg);
     }
 
@@ -253,7 +264,7 @@
         const b = new Blob(state.chunks, { type: 'video/webm' });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(b);
-        a.download = `STATION9_THE_BARRIER_${state.keyword}.webm`;
+        a.download = `STATION9_OMEGA_${state.keyword}.webm`;
         a.click();
         setTimeout(() => window.location.reload(), 3000);
     }
