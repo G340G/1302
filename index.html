@@ -1,264 +1,761 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>STATION_9 // THE_ARCHIVAL_RITUAL_V20</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=VT323&display=swap');
-        body, html { margin: 0; padding: 0; background: #050505; overflow: hidden; cursor: none; }
-        #viewport { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        canvas { width: 100%; height: 100%; object-fit: contain; filter: contrast(1.6) saturate(0.3) brightness(1.1); image-rendering: pixelated; }
-        
-        /* CRT SHADER OVERLAY */
-        .vhs-bloom { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%),
-                        linear-gradient(90deg, rgba(255, 0, 0, 0.08), rgba(0, 255, 0, 0.03), rgba(0, 0, 255, 0.08));
-            background-size: 100% 3px, 3px 100%; mix-blend-mode: screen; }
-        
-        #ui-gate { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; color: #fff; font-family: 'VT323', monospace; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .monitor-frame { border: 10px solid #222; background: #000044; padding: 40px; box-shadow: inset 0 0 50px #000; text-align: left; width: 700px; }
-        button { background: #fff; color: #000044; border: none; padding: 20px 60px; font-family: 'Archivo Black', sans-serif; font-size: 1.5rem; cursor: pointer; margin-top: 30px; display: none; transition: 0.3s; }
-        button:hover { background: #ff0000; color: #fff; }
-    </style>
+<meta charset="UTF-8">
+<title>MISSING PERSON ALERT // DO NOT BROADCAST</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&family=Courier+Prime&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}body,html{background:#000;overflow:hidden;cursor:none;font-family:'Courier Prime',monospace}#viewport{position:relative;width:100vw;height:100vh;display:flex;justify-content:center;align-items:center}canvas{width:100%;height:100%;object-fit:contain;filter:contrast(1.8) saturate(0.4) brightness(0.9);image-rendering:pixelated}.vhs-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;background:repeating-linear-gradient(0deg,rgba(0,0,0,0.15) 0px,transparent 2px,transparent 3px,rgba(0,0,0,0.15) 4px),repeating-linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.02),rgba(0,0,255,0.03));background-size:100% 4px,3px 100%;mix-blend-mode:overlay;animation:vhsScan 8s linear infinite}@keyframes vhsScan{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}#boot-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:200;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#0f0;font-family:'VT323',monospace;padding:40px}.terminal{width:800px;max-width:90%;text-align:left;font-size:20px;line-height:1.5;border:3px solid #0f0;padding:30px;background:rgba(0,20,0,0.9);box-shadow:inset 0 0 100px rgba(0,255,0,0.1),0 0 30px rgba(0,255,0,0.3)}.blink{animation:blink 1s infinite}@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}#init-btn{margin-top:40px;padding:20px 60px;background:#0f0;color:#000;border:none;font-family:'Special Elite',cursive;font-size:24px;cursor:pointer;text-transform:uppercase;letter-spacing:3px;transition:all 0.3s;display:none;box-shadow:0 0 20px rgba(0,255,0,0.5)}#init-btn:hover{background:#f00;color:#fff;box-shadow:0 0 30px rgba(255,0,0,0.8);transform:scale(1.05)}.warning{color:#f00;animation:pulse 2s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+</style>
 </head>
 <body>
-
-<div id="ui-gate">
-    <div class="monitor-frame">
-        > STATION_9 INTERCEPT... [LOADED]<br>
-        > 27,000,000+ PERMUTATIONS DETECTED.<br>
-        > SUBJECT: <span id="keyword-display" style="color:#ff0;">...</span><br>
-        > WARNING: DO NOT RECORD THE AUDIO COMPONENT.<br>
-        > THE FIEND IS OBSERVING THIS HANDSHAKE.
-    </div>
-    <button id="start-btn">INITIALIZE RITUAL</button>
+<div id="boot-screen">
+<div class="terminal">
+<div id="boot-text"></div>
+<span class="blink">▊</span>
 </div>
-
+<button id="init-btn">BEGIN PLAYBACK</button>
+</div>
 <div id="viewport">
-    <div class="vhs-bloom"></div>
-    <canvas id="c"></canvas>
+<div class="vhs-overlay"></div>
+<canvas id="canvas"></canvas>
 </div>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
 <script>
-(function() {
-    "use strict";
+(function(){
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d",{alpha:false});
+canvas.width=1920;
+canvas.height=1080;
 
-    const canvas = document.getElementById("c");
-    const ctx = canvas.getContext("2d", { alpha: false });
-    const startBtn = document.getElementById("start-btn");
+let STATE={
+active:false,
+frame:0,
+maxFrames:5400,
+scene:0,
+victim:null,
+evidence:[],
+testimonies:[],
+images:[],
+glitchIntensity:0,
+fiendProximity:0,
+audioContext:null,
+audioDestination:null,
+recorder:null,
+chunks:[],
+coordinates:"",
+phone:"",
+caseNumber:"",
+pattern:[],
+distortedSpeech:null
+};
 
-    canvas.width = 1280;
-    canvas.height = 720;
+const FIRST_NAMES=["Sarah","Michael","Emily","David","Jessica","Christopher","Amanda","Matthew","Ashley","Joshua","Megan","Daniel","Lauren","James","Rebecca"];
+const LAST_NAMES=["Anderson","Mitchell","Parker","Collins","Morrison","Bennett","Sullivan","Harrison","Fletcher","Coleman","Henderson","Martinez","Wallace","Griffin","Hayes"];
+const LOCATIONS=["Oakwood Shopping Center","County Road 47","Riverside Park","Downtown Bus Station","Miller's Gas Station","Highway 19 Rest Stop","Lakewood Apartments","State Route 6","Valley View Mall","Pine Creek Trail"];
+const DATES=["March 15, 2003","July 22, 1998","October 8, 2005","January 3, 2001","September 17, 1999","May 29, 2004","December 11, 2002","August 6, 2000","April 23, 1997","November 14, 2006"];
+const ADJECTIVES=["Impossible","Recursive","Inverted","Bleeding","Hollow","Writhing","Dormant","Crystalline","Spectral","Aberrant","Cascading","Fractured","Ambient","Malignant"];
+const NOUNS=["Geometry","Frequency","Threshold","Witness","Aperture","Signal","Membrane","Protocol","Vessel","Lattice","Corridor","Substrate","Echo","Manifestation"];
+const VERBS=["Convergence","Dissolution","Inhabitation","Propagation","Severance","Transference","Consumption","Integration","Emergence","Resonance"];
 
-    let state = {
-        active: false,
-        frame: 0,
-        maxFrames: 3600, // 60 Seconds
-        keyword: "",
-        wikiTexts: [],
-        images: [],
-        prox: 0,
-        recorder: null,
-        chunks: [],
-        audio: { ctx: null, dest: null, master: null }
-    };
+function generateVictim(){
+const first=_.sample(FIRST_NAMES);
+const last=_.sample(LAST_NAMES);
+const age=16+Math.floor(Math.random()*25);
+const height=`5'${4+Math.floor(Math.random()*8)}"`;
+const weight=110+Math.floor(Math.random()*90);
+const tops=["blue denim jacket","red hoodie","gray sweater","black leather jacket","white t-shirt"];
+const bottoms=["blue jeans","black pants","khaki shorts","dark skirt"];
+return{
+name:`${first} ${last}`,
+age:age,
+height:height,
+weight:weight,
+lastSeen:_.sample(LOCATIONS),
+date:_.sample(DATES),
+wearing:`${_.sample(tops)}, ${_.sample(bottoms)}`,
+caseNum:`MP-${Math.floor(Math.random()*90000)+10000}`
+}
+}
 
-    // --- 1. THE 27-MILLION COMBINATION BRAIN ---
-    const ADJ = ["Extradimensional", "Non-Euclidean", "Mandatory", "Visceral", "Dormant", "Cytotoxic", "Subterranean", "Obsessive", "Fungal", "Post-Human", "Logarithmic", "Bleeding", "Silent", "Inverted"];
-    const SUB = ["Vessel", "Nerve", "Architecture", "Pulse", "Constraint", "Aperture", "Marrow", "Lattice", "Protocol", "Echo", "Fluid", "Gland", "Threshold"];
-    const ACT = ["Convergence", "Nullification", "Erosion", "Saturation", "Bleed", "Harvest", "Compliance", "Collapse", "Transfusion", "Inhabitation"];
+function generateCoordinates(){
+const lat=(35+Math.random()*15).toFixed(6);
+const lon=(-120+Math.random()*30).toFixed(6);
+return`${lat}°N ${lon}°W`;
+}
 
-    async function init() {
-        state.keyword = `${ADJ[Math.floor(Math.random()*ADJ.length)]} ${SUB[Math.floor(Math.random()*SUB.length)]} ${ACT[Math.floor(Math.random()*ACT.length)]}`;
-        document.getElementById("keyword-display").innerText = state.keyword;
+function generatePhone(){
+return`(${Math.floor(Math.random()*900)+100}) ${Math.floor(Math.random()*900)+100}-${Math.floor(Math.random()*9000)+1000}`;
+}
 
-        // Scrape 3 random wiki entries for depth
-        const seeds = [SUB[Math.floor(Math.random()*SUB.length)], "Entomology", "Parapsychology"];
-        for(let s of seeds) {
-            try {
-                const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${s}`);
-                const d = await r.json();
-                state.wikiTexts.push((d.extract || "EMPTY").toUpperCase());
-            } catch { state.wikiTexts.push("THE SIGNAL IS TOO WEAK TO DECODE."); }
-        }
+function generatePattern(){
+const base=Math.floor(Math.random()*30)+10;
+return[base,base*2,base*3,base*5,base*7,base*11];
+}
 
-        // Scrape complex images
-        for(let i=0; i<10; i++) {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.src = `https://picsum.photos/seed/${Math.random()}/1024/768?grayscale`;
-            state.images.push(img);
-        }
-        startBtn.style.display = "block";
-    }
+const BOOT_SEQUENCE=[
+"> ACCESSING ARCHIVED BROADCAST FOOTAGE...",
+"> WARNING: UNAUTHORIZED PLAYBACK DETECTED",
+"> CASE FILES: LOADING...",
+"> STATION_9 PROTOCOL INITIATED",
+"",
+"> SUBJECT DESIGNATION: [GENERATING...]",
+"> LAST KNOWN COORDINATES: [TRIANGULATING...]",
+"> WITNESS TESTIMONIES: [COMPILING...]",
+"> SCRAPING ONLINE DATABASES...",
+"",
+"<span class='warning'>> CRITICAL: THE FOLLOWING MATERIAL HAS BEEN CLASSIFIED</span>",
+"<span class='warning'>> DO NOT DISTRIBUTE. DO NOT RECORD. DO NOT INVESTIGATE.</span>",
+"",
+"> ANOMALOUS PATTERNS DETECTED IN FOOTAGE",
+"> STATISTICAL PROBABILITY OF ERROR: 0.00001%",
+"> RECOMMENDATION: IMMEDIATE TERMINATION OF PLAYBACK",
+"",
+"<span class='warning'>> OVERRIDE REJECTED</span>",
+"<span class='warning'>> PLAYBACK WILL COMMENCE IN 3...</span>",
+"<span class='warning'>> 2...</span>",
+"<span class='warning'>> 1...</span>"
+];
 
-    // --- 2. MULTI-INSTRUMENT ATONAL MUSIC ---
-    function setupAudio() {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        state.audio.ctx = new AC();
-        state.audio.dest = state.audio.ctx.createMediaStreamDestination();
-        state.audio.master = state.audio.ctx.createGain();
-        state.audio.master.connect(state.audio.dest);
-        state.audio.master.connect(state.audio.ctx.destination);
+let bootLine=0;
+function typeBootSequence(){
+if(bootLine>=BOOT_SEQUENCE.length){
+document.getElementById("init-btn").style.display="block";
+return;
+}
+const bootText=document.getElementById("boot-text");
+bootText.innerHTML+=BOOT_SEQUENCE[bootLine]+"<br>";
+bootLine++;
+setTimeout(typeBootSequence,300+Math.random()*400);
+}
 
-        // Industrial Martial Beat
-        setInterval(() => {
-            if(!state.active) return;
-            const time = state.audio.ctx.currentTime;
-            playNote(60, 'square', 0.2, 0.4); // Bass Drum
-            if(state.frame % 60 < 10) playNote(1200, 'sawtooth', 0.05, 0.1); // Metallic Snare
-        }, 600);
+async function fetchCreepyImages(){
+// Using Picsum Photos - CORS friendly, random images
+const imageIds=[
+200,237,431,659,870,431,1074,1084,180,230,
+287,367,420,443,510,582,593,616,683,718
+];
 
-        // Atonal Melody (The Ritual)
-        const scale = [130.81, 155.56, 185.00, 220.00, 261.63]; // C Minor Diminished
-        setInterval(() => {
-            if(!state.active) return;
-            const freq = scale[Math.floor(Math.random()*scale.length)];
-            playNote(freq, 'triangle', 0.1, 1.5);
-        }, 1200);
-    }
+const shuffled=_.shuffle(imageIds);
+const promises=shuffled.slice(0,15).map((id,index)=>{
+return new Promise((resolve)=>{
+const img=new Image();
+img.crossOrigin="anonymous";
+// Add blur and grayscale for creepy effect
+img.onload=()=>resolve(img);
+img.onerror=()=>{
+// Fallback to procedural if fails
+const fallback=generateProceduralImage(Math.random()*999999,['face','forest','static','room'][index%4]);
+resolve(fallback);
+};
+img.src=`https://picsum.photos/id/${id}/1200/800?grayscale&blur=1`;
+});
+});
 
-    function playNote(freq, type, vol, len) {
-        const o = state.audio.ctx.createOscillator();
-        const g = state.audio.ctx.createGain();
-        o.type = type;
-        o.frequency.setValueAtTime(freq, state.audio.ctx.currentTime);
-        g.gain.setValueAtTime(vol, state.audio.ctx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, state.audio.ctx.currentTime + len);
-        o.connect(g).connect(state.audio.master);
-        o.start(); o.stop(state.audio.ctx.currentTime + len);
-    }
+return Promise.all(promises);
+}
 
-    // --- 3. THE FIEND & DISTORTED VISUALS ---
-    function drawFiend(p) {
-        ctx.save();
-        ctx.globalAlpha = p * 0.5;
-        ctx.fillStyle = "#000";
-        const jitter = Math.random() * 10;
-        ctx.translate(640 + jitter, 360);
-        ctx.scale(1 + p*3, 1 + p*3);
-        
-        // Procedural body
-        ctx.beginPath();
-        ctx.moveTo(-50, 100);
-        ctx.bezierCurveTo(-100, -200, 100, -200, 50, 100);
-        ctx.fill();
-        
-        // Eyes
-        ctx.fillStyle = "#fff";
-        if(Math.random() > 0.05) {
-            ctx.fillRect(-20, -120, 15, 2); ctx.fillRect(10, -120, 15, 2);
-        }
-        ctx.restore();
-    }
+async function fetchCreepyText(){
+const topics=[
+"Exploding_head_syndrome",
+"Shadow_person",
+"Sleep_paralysis",
+"Liminal_space",
+"Missing_person",
+"Unexplained_disappearance",
+"Unsolved_murder",
+"Paranormal",
+"Mass_hysteria",
+"Electronic_voice_phenomenon",
+"Backrooms",
+"Night_terror",
+"False_memory",
+"Mandela_Effect",
+"Cryptid"
+];
 
-    function render() {
-        if(!state.active) return;
-        state.frame++;
-        state.prox = state.frame / state.maxFrames;
+const selectedTopics=_.shuffle(topics).slice(0,4);
+const testimonies=[];
 
-        // Draw Background (Sickly Green/Grey)
-        ctx.fillStyle = "#1a1c1a";
-        ctx.fillRect(0,0,1280,720);
+for(const topic of selectedTopics){
+try{
+const response=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${topic}`);
+if(!response.ok)throw new Error('Failed');
+const data=await response.json();
 
-        // Dynamic Layouts
-        const scene = Math.floor(state.frame / 600) % 3;
+if(data.extract){
+const sentences=data.extract.split(/[.!?]+/).filter(s=>s.trim().length>20);
+// Pick eerie sentences
+const eerie=sentences.filter(s=>{
+const lower=s.toLowerCase();
+return lower.includes('unknown')||lower.includes('unexplained')||
+lower.includes('mysterious')||lower.includes('report')||
+lower.includes('witness')||lower.includes('disappear')||
+lower.includes('strange')||lower.includes('unexpect')||
+lower.includes('phenomenon')||lower.includes('cannot');
+});
 
-        if(scene === 0) {
-            // CORPORATE DATA
-            ctx.fillStyle = "#000"; ctx.fillRect(50, 50, 1180, 620);
-            ctx.strokeStyle = "#fff"; ctx.strokeRect(60, 60, 1160, 600);
-            ctx.fillStyle = "#fff"; ctx.font = "bold 40px Archivo Black";
-            ctx.fillText("PROTOCOL: " + state.keyword, 100, 120);
-            
-            ctx.font = "20px VT323";
-            const txt = state.wikiTexts[0] || "";
-            const lines = txt.match(/.{1,90}(\s|$)/g) || [];
-            lines.slice(0, 15).forEach((l, i) => ctx.fillText(l, 100, 200 + (i*25)));
-        } else if(scene === 1) {
-            // POLAROID CORRUPTION
-            const img = state.images[Math.floor(state.frame/100) % 10];
-            ctx.save();
-            ctx.translate(640, 360);
-            ctx.rotate(Math.sin(state.frame*0.02)*0.1);
-            // Polaroid Frame
-            ctx.fillStyle = "#ddd"; ctx.fillRect(-320, -320, 640, 640);
-            ctx.fillStyle = "#000";
-            if(img.complete) {
-                // Melting effect
-                ctx.drawImage(img, -300, -300, 600, 450);
-                if(Math.random() > 0.8) {
-                    ctx.fillStyle = "rgba(0,0,0,0.5)";
-                    ctx.fillRect(-300, -300 + (Math.random()*450), 600, 20);
-                }
-            }
-            ctx.fillStyle = "#222"; ctx.font = "30px VT323";
-            ctx.fillText("SUBJECT_REF_" + state.frame, -280, 250);
-            ctx.restore();
-        } else {
-            // THE FIEND REVEAL
-            ctx.fillStyle = "#000"; ctx.fillRect(0,0,1280,720);
-            drawFiend(state.prox);
-            ctx.fillStyle = "#fff"; ctx.font = "50px Archivo Black"; ctx.textAlign = "center";
-            if(Math.random() > 0.95) ctx.fillText("HE IS COMPLIANT", 640, 600);
-        }
+if(eerie.length>0){
+testimonies.push(_.sample(eerie).trim().toUpperCase());
+}
+}
+}catch(e){
+console.warn('Failed to fetch',topic);
+}
+}
 
-        // Subliminal Overlays
-        if(Math.random() > 0.98) {
-            ctx.fillStyle = "rgba(255,0,0,0.2)";
-            ctx.fillRect(0,0,1280,720);
-            playNote(40, 'sawtooth', 0.5, 0.2); // Jumpscare Audio
-        }
+// Add fallbacks
+if(testimonies.length<3){
+testimonies.push(
+"WITNESSES REPORT SEEING THE VICTIM ENTER BUT NEVER LEAVE",
+"SECURITY FOOTAGE SHOWS IMPOSSIBLE MOVEMENTS",
+"ALL CLOCKS IN THE VICINITY STOPPED SIMULTANEOUSLY",
+"MULTIPLE REPORTS OF IDENTICAL FIGURES IN THE AREA"
+);
+}
 
-        // Ticker
-        ctx.fillStyle = "#000"; ctx.fillRect(0, 680, 1280, 40);
-        ctx.fillStyle = "#0f0"; ctx.font = "20px VT323"; ctx.textAlign = "left";
-        ctx.fillText("STATION_9 // " + state.wikiTexts[1] + " // " + state.keyword, 1280 - (state.frame*6 % 10000), 710);
+return testimonies.slice(0,5);
+}
 
-        if(state.frame < state.maxFrames) requestAnimationFrame(render);
-        else finish();
-    }
+function generateProceduralImage(seed,type){
+const tempCanvas=document.createElement('canvas');
+tempCanvas.width=1200;
+tempCanvas.height=800;
+const tempCtx=tempCanvas.getContext('2d');
+const rng=()=>{seed=(seed*9301+49297)%233280;return seed/233280};
 
-    // --- 4. ENGINE & DOWNLOAD FIX ---
-    async function start() {
-        document.getElementById("ui-gate").style.display = "none";
-        setupAudio();
-        
-        const stream = canvas.captureStream(60);
-        const combined = new MediaStream([...stream.getVideoTracks(), ...state.audio.dest.stream.getAudioTracks()]);
+if(type==='face'){
+tempCtx.fillStyle='#0a0a0a';
+tempCtx.fillRect(0,0,1200,800);
+tempCtx.fillStyle='#1a1a1a';
+for(let i=0;i<500;i++){
+tempCtx.fillRect(rng()*1200,rng()*800,rng()*20,rng()*20);
+}
+tempCtx.fillStyle='#2a2a2a';
+tempCtx.beginPath();
+tempCtx.ellipse(600,400,250,350,0,0,Math.PI*2);
+tempCtx.fill();
+tempCtx.fillStyle='#000';
+tempCtx.fillRect(480,320,80,100);
+tempCtx.fillRect(640,320,80,100);
+for(let i=0;i<50;i++){
+tempCtx.fillStyle=`rgba(255,0,0,${rng()*0.3})`;
+tempCtx.fillRect(0,rng()*800,1200,rng()*5);
+}
+}else if(type==='forest'){
+tempCtx.fillStyle='#050508';
+tempCtx.fillRect(0,0,1200,800);
+for(let i=0;i<100;i++){
+tempCtx.fillStyle=`rgba(${10+rng()*20},${10+rng()*20},${10+rng()*20},0.8)`;
+tempCtx.fillRect(rng()*1200,0,20+rng()*40,800);
+}
+const grad=tempCtx.createRadialGradient(600,400,100,600,400,600);
+grad.addColorStop(0,'rgba(50,50,50,0.3)');
+grad.addColorStop(1,'rgba(0,0,0,0)');
+tempCtx.fillStyle=grad;
+tempCtx.fillRect(0,0,1200,800);
+}else if(type==='static'){
+for(let i=0;i<1200;i+=2){
+for(let j=0;j<800;j+=2){
+const v=rng()*255;
+tempCtx.fillStyle=`rgb(${v},${v},${v})`;
+tempCtx.fillRect(i,j,2,2);
+}
+}
+}else{
+tempCtx.fillStyle='#0f0f0f';
+tempCtx.fillRect(0,0,1200,800);
+for(let i=0;i<1000;i++){
+tempCtx.fillStyle=`rgba(${20+rng()*50},${10+rng()*30},${10+rng()*30},${rng()*0.8})`;
+tempCtx.fillRect(rng()*1200,rng()*800,rng()*50,rng()*50);
+}
+}
 
-        state.recorder = new MediaRecorder(combined, { mimeType: 'video/webm;codecs=vp9,opus' });
-        state.recorder.ondataavailable = e => { if(e.data.size > 0) state.chunks.push(e.data); };
-        
-        state.recorder.onstop = () => {
-            const blob = new Blob(state.chunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            document.body.appendChild(a);
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `STATION9_RITUAL_${state.keyword.replace(/ /g,'_')}.webm`;
-            a.click();
-            setTimeout(() => { window.location.reload(); }, 5000);
-        };
+const img=new Image();
+img.src=tempCanvas.toDataURL();
+return img;
+}
 
-        state.recorder.start(100);
-        state.active = true;
-        render();
+async function initialize(){
+STATE.victim=generateVictim();
+STATE.coordinates=generateCoordinates();
+STATE.phone=generatePhone();
+STATE.caseNumber=STATE.victim.caseNum;
+STATE.pattern=generatePattern();
 
-        const utter = new SpeechSynthesisUtterance(`Ritual sequence initiated. The topic is ${state.keyword}. Observe the polaroids carefully. The fiend is currently ${Math.floor(state.prox * 100)} percent manifested.`);
-        utter.lang = 'en-US'; utter.pitch = 0.1; utter.rate = 0.75;
-        window.speechSynthesis.speak(utter);
-    }
+for(let i=0;i<3;i++){
+STATE.evidence.push(`${_.sample(ADJECTIVES)} ${_.sample(NOUNS)} ${_.sample(VERBS)}`);
+}
 
-    function finish() {
-        state.active = false;
-        state.recorder.stop();
-    }
+// Fetch real creepy images from online
+console.log('Fetching creepy images from online...');
+STATE.images=await fetchCreepyImages();
+console.log('Images loaded:',STATE.images.length);
 
-    init();
-    startBtn.addEventListener("click", start);
+// Fetch real testimony text from Wikipedia
+console.log('Scraping witness testimonies...');
+STATE.testimonies=await fetchCreepyText();
+console.log('Testimonies loaded:',STATE.testimonies.length);
 
+typeBootSequence();
+}
+
+function setupAudio(){
+const AudioContext=window.AudioContext||window.webkitAudioContext;
+STATE.audioContext=new AudioContext();
+STATE.audioDestination=STATE.audioContext.createMediaStreamDestination();
+const masterGain=STATE.audioContext.createGain();
+masterGain.gain.value=0.6;
+masterGain.connect(STATE.audioDestination);
+masterGain.connect(STATE.audioContext.destination);
+
+const droneLFO=STATE.audioContext.createOscillator();
+const droneGain=STATE.audioContext.createGain();
+droneLFO.type='sine';
+droneLFO.frequency.value=0.1;
+droneGain.gain.value=20;
+const drone=STATE.audioContext.createOscillator();
+drone.type='sine';
+drone.frequency.value=40;
+droneLFO.connect(droneGain);
+droneGain.connect(drone.frequency);
+drone.connect(masterGain);
+drone.start();
+droneLFO.start();
+
+const binauralL=STATE.audioContext.createOscillator();
+const binauralR=STATE.audioContext.createOscillator();
+const binauralGain=STATE.audioContext.createGain();
+const merger=STATE.audioContext.createChannelMerger(2);
+binauralL.frequency.value=200;
+binauralR.frequency.value=207;
+binauralGain.gain.value=0.05;
+binauralL.connect(merger,0,0);
+binauralR.connect(merger,0,1);
+merger.connect(binauralGain);
+binauralGain.connect(masterGain);
+binauralL.start();
+binauralR.start();
+
+setInterval(()=>{
+if(!STATE.active)return;
+const freq=80+Math.random()*400;
+const osc=STATE.audioContext.createOscillator();
+const gain=STATE.audioContext.createGain();
+osc.type=_.sample(['sine','square','sawtooth','triangle']);
+osc.frequency.setValueAtTime(freq,STATE.audioContext.currentTime);
+gain.gain.setValueAtTime(0.1+STATE.glitchIntensity*0.2,STATE.audioContext.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.001,STATE.audioContext.currentTime+0.5);
+osc.connect(gain);
+gain.connect(masterGain);
+osc.start();
+osc.stop(STATE.audioContext.currentTime+0.5);
+},800+Math.random()*1200);
+
+setInterval(()=>{
+if(!STATE.active||Math.random()>0.3)return;
+const eas1=STATE.audioContext.createOscillator();
+const eas2=STATE.audioContext.createOscillator();
+const easGain=STATE.audioContext.createGain();
+eas1.frequency.value=853;
+eas2.frequency.value=960;
+easGain.gain.value=0.15;
+eas1.connect(easGain);
+eas2.connect(easGain);
+easGain.connect(masterGain);
+eas1.start();
+eas2.start();
+setTimeout(()=>{eas1.stop();eas2.stop()},200);
+},8000);
+}
+
+function createDistortedSpeech(text){
+// Create an offline audio context to process TTS
+const offlineCtx=new OfflineAudioContext(2,STATE.audioContext.sampleRate*30,STATE.audioContext.sampleRate);
+
+const utterance=new SpeechSynthesisUtterance(text);
+utterance.pitch=0.7;
+utterance.rate=0.85;
+utterance.volume=1.0;
+utterance.lang='en-US';
+
+// Find a creepy voice if available
+const voices=window.speechSynthesis.getVoices();
+const preferredVoices=voices.filter(v=>
+v.lang.startsWith('en')&&(v.name.includes('Male')||v.name.includes('Google'))
+);
+if(preferredVoices.length>0){
+utterance.voice=preferredVoices[0];
+}
+
+window.speechSynthesis.speak(utterance);
+}
+
+function drawVHSTimestamp(){
+const date=new Date(STATE.victim.date);
+if(Math.random()>0.95){
+date.setFullYear(date.getFullYear()+(Math.random()>0.5?100:-50));
+}
+const hours=Math.floor(STATE.frame/3600)+(Math.random()>0.98?Math.floor(Math.random()*24):9);
+const mins=Math.floor((STATE.frame%3600)/60);
+const secs=STATE.frame%60;
+ctx.fillStyle="rgba(0, 0, 0, 0.8)";
+ctx.fillRect(20,20,400,80);
+ctx.fillStyle="#fff";
+ctx.font="28px VT323";
+ctx.fillText(`REC ●`,35,50);
+ctx.fillText(`${date.getMonth()+1}/${date.getDate()}/${date.getFullYear()}`,35,80);
+ctx.fillText(`${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`,250,80);
+const battery=Math.max(0,100-(STATE.frame/STATE.maxFrames)*100);
+ctx.strokeStyle=battery<20?"#f00":"#fff";
+ctx.strokeRect(350,30,50,25);
+ctx.fillRect(400,40,5,5);
+ctx.fillStyle=battery<20?"#f00":"#0f0";
+ctx.fillRect(352,32,(battery/100)*46,21);
+}
+
+function drawMissingPersonPoster(){
+ctx.fillStyle="#fff";
+ctx.fillRect(0,0,1920,1080);
+ctx.fillStyle="#c00";
+ctx.fillRect(0,0,1920,200);
+ctx.fillStyle="#fff";
+ctx.font="bold 120px Special Elite";
+ctx.textAlign="center";
+ctx.fillText("MISSING PERSON",960,140);
+ctx.fillStyle="#000";
+ctx.fillRect(560,250,800,1000);
+
+const img=STATE.images[0];
+if(img&&img.complete){
+ctx.save();
+ctx.globalAlpha=0.7+Math.random()*0.3;
+for(let i=0;i<10;i++){
+const offsetY=Math.random()*600;
+try{
+ctx.drawImage(img,0,offsetY,img.width||1200,50,560+(Math.random()-0.5)*20,250+offsetY,800,50);
+}catch(e){}
+}
+ctx.restore();
+}
+
+ctx.fillStyle="#000";
+ctx.font="bold 60px Courier Prime";
+ctx.textAlign="left";
+ctx.fillText(STATE.victim.name.toUpperCase(),150,1400);
+ctx.font="40px Courier Prime";
+ctx.fillText(`AGE: ${STATE.victim.age} | HEIGHT: ${STATE.victim.height} | WEIGHT: ${STATE.victim.weight} LBS`,150,1470);
+ctx.fillText(`LAST SEEN: ${STATE.victim.lastSeen}`,150,1540);
+ctx.fillText(`DATE: ${STATE.victim.date}`,150,1610);
+ctx.fillText(`WEARING: ${STATE.victim.wearing}`,150,1680);
+ctx.fillStyle="#c00";
+ctx.font="bold 70px Special Elite";
+ctx.textAlign="center";
+let displayPhone=STATE.phone;
+if(Math.random()>0.7){
+displayPhone=displayPhone.replace(/\d/g,()=>Math.floor(Math.random()*10));
+}
+ctx.fillText(`IF YOU HAVE INFORMATION CALL: ${displayPhone}`,960,1800);
+ctx.fillStyle="#666";
+ctx.font="30px Courier Prime";
+ctx.fillText(`CASE #${STATE.caseNumber}`,960,1870);
+if(STATE.frame%600<10){
+ctx.fillStyle="rgba(0, 0, 0, 0.1)";
+ctx.font="20px Courier Prime";
+ctx.textAlign="left";
+ctx.fillText(STATE.coordinates,50,1050);
+}
+}
+
+function drawEvidenceBoard(){
+ctx.fillStyle="#8b7355";
+ctx.fillRect(0,0,1920,1080);
+for(let i=0;i<100;i++){
+ctx.fillStyle=`rgba(139, 115, 85, ${Math.random()*0.3})`;
+ctx.fillRect(Math.random()*1920,Math.random()*1080,5,5);
+}
+for(let i=0;i<4;i++){
+const x=200+(i%2)*800;
+const y=200+Math.floor(i/2)*600;
+drawPolaroid(x,y,i,15*(Math.sin(STATE.frame*0.01+i)));
+}
+ctx.strokeStyle="#f00";
+ctx.lineWidth=3;
+ctx.beginPath();
+ctx.moveTo(400,350);
+ctx.lineTo(1200,350);
+ctx.lineTo(1200,750);
+ctx.lineTo(400,750);
+ctx.closePath();
+ctx.stroke();
+ctx.fillStyle="#fff";
+ctx.fillRect(100,900,1720,150);
+ctx.fillStyle="#000";
+ctx.font="32px Special Elite";
+ctx.textAlign="left";
+const note=STATE.testimonies[Math.floor(STATE.frame/600)%STATE.testimonies.length]||"DATA CORRUPTED";
+const wrapped=note.match(/.{1,75}/g)||[note];
+wrapped.slice(0,2).forEach((line,i)=>{
+ctx.fillText(line,120,950+i*40);
+});
+}
+
+function drawPolaroid(x,y,index,rotation){
+ctx.save();
+ctx.translate(x,y);
+ctx.rotate(rotation*Math.PI/180);
+ctx.fillStyle="#f5f5f5";
+ctx.fillRect(-150,-180,300,350);
+ctx.fillStyle="#000";
+ctx.fillRect(-140,-170,280,280);
+
+const img=STATE.images[index+2];
+if(img&&img.complete){
+ctx.save();
+try{
+if(Math.random()<STATE.glitchIntensity){
+ctx.globalAlpha=0.5+Math.random()*0.5;
+for(let i=0;i<5;i++){
+const sliceY=Math.random()*280;
+const sliceH=20+Math.random()*40;
+const offset=(Math.random()-0.5)*50;
+ctx.drawImage(img,0,sliceY,img.width||1200,sliceH,-140+offset,-170+sliceY,280,sliceH);
+}
+}else{
+ctx.drawImage(img,-140,-170,280,280);
+}
+if(Math.random()>0.7){
+ctx.fillStyle="rgba(100, 0, 0, 0.5)";
+for(let i=0;i<5;i++){
+ctx.beginPath();
+ctx.arc(-140+Math.random()*280,-170+Math.random()*280,5+Math.random()*15,0,Math.PI*2);
+ctx.fill();
+}
+}
+}catch(e){}
+ctx.restore();
+}
+
+ctx.fillStyle="#000";
+ctx.font="18px Special Elite";
+ctx.textAlign="center";
+ctx.fillText(`EVIDENCE ${String(index+1).padStart(3,'0')}`,0,140);
+ctx.fillText(STATE.victim.caseNum,0,160);
+ctx.fillStyle="#c00";
+ctx.beginPath();
+ctx.arc(0,-190,8,0,Math.PI*2);
+ctx.fill();
+ctx.restore();
+}
+
+function drawStaticTransition(){
+const imageData=ctx.createImageData(1920,1080);
+const data=imageData.data;
+for(let i=0;i<data.length;i+=4){
+const value=Math.random()*255;
+data[i]=value;
+data[i+1]=value;
+data[i+2]=value;
+data[i+3]=255;
+}
+ctx.putImageData(imageData,0,0);
+}
+
+function drawFoundFootage(){
+ctx.fillStyle="#000";
+ctx.fillRect(0,0,1920,1080);
+const img=STATE.images[6+(Math.floor(STATE.frame/120)%5)];
+if(img&&img.complete){
+const shakeX=(Math.random()-0.5)*30;
+const shakeY=(Math.random()-0.5)*30;
+ctx.save();
+ctx.translate(960+shakeX,540+shakeY);
+const gradient=ctx.createRadialGradient(0,0,200,0,0,800);
+gradient.addColorStop(0,"rgba(0,0,0,0)");
+gradient.addColorStop(1,"rgba(0,0,0,0.8)");
+try{
+ctx.drawImage(img,-960,-540,1920,1080);
+}catch(e){}
+ctx.fillStyle=gradient;
+ctx.fillRect(-960,-540,1920,1080);
+ctx.restore();
+}
+ctx.fillStyle="rgba(0, 255, 0, 0.1)";
+ctx.fillRect(0,0,1920,1080);
+}
+
+function drawTheFiend(){
+ctx.fillStyle="#000";
+ctx.fillRect(0,0,1920,1080);
+const centerX=960;
+const centerY=540;
+const scale=STATE.fiendProximity*2;
+ctx.save();
+ctx.translate(centerX,centerY);
+if(Math.random()>0.8){
+ctx.translate((Math.random()-0.5)*100,(Math.random()-0.5)*100);
+}
+ctx.scale(scale,scale);
+ctx.fillStyle="#000";
+ctx.globalAlpha=0.3+STATE.fiendProximity*0.7;
+ctx.beginPath();
+ctx.ellipse(0,0,80,200,0,0,Math.PI*2);
+ctx.fill();
+ctx.beginPath();
+ctx.arc(0,-220,60,0,Math.PI*2);
+ctx.fill();
+for(let i=0;i<5;i++){
+const angle=(Math.PI/3)*i-Math.PI/2;
+const length=150+Math.random()*50;
+ctx.beginPath();
+ctx.moveTo(0,-50);
+ctx.lineTo(Math.cos(angle)*length,-50+Math.sin(angle)*length);
+ctx.lineWidth=10;
+ctx.strokeStyle="#000";
+ctx.stroke();
+}
+ctx.fillStyle="#fff";
+if(STATE.frame%90<85)ctx.fillRect(-30,-230,15,3);
+if((STATE.frame+30)%90<85)ctx.fillRect(15,-225,15,3);
+ctx.restore();
+if(STATE.fiendProximity>0.5){
+ctx.fillStyle="#f00";
+ctx.font="bold 80px Special Elite";
+ctx.textAlign="center";
+if(Math.random()>0.5){
+const messages=["HE IS HERE","IT KNOWS YOUR NAME","DO NOT LOOK AWAY","YOU CANNOT LEAVE",`CASE #${STATE.caseNumber}`,STATE.coordinates];
+ctx.fillText(_.sample(messages),960,950);
+}
+}
+}
+
+function drawNewsChyron(){
+ctx.fillStyle="#c00";
+ctx.fillRect(0,980,1920,100);
+ctx.fillStyle="#fff";
+ctx.font="bold 40px Courier Prime";
+ctx.textAlign="left";
+const newsItems=[
+`BREAKING: ${STATE.victim.name.toUpperCase()} MISSING SINCE ${STATE.victim.date}`,
+`POLICE SEEK INFORMATION IN ${STATE.caseNumber} CASE`,
+`WITNESSES REPORT ${STATE.evidence[0]}`,
+`COORDINATES ${STATE.coordinates} UNDER INVESTIGATION`,
+`PATTERN DETECTED: ${STATE.pattern.join('-')}`,
+`LOCAL AUTHORITIES UNABLE TO EXPLAIN ANOMALIES`,
+`DO NOT APPROACH. DO NOT INVESTIGATE. CALL ${STATE.phone}`
+];
+const scrollX=1920-((STATE.frame*5)%(newsItems.join(' /// ').length*25+1920));
+ctx.fillText(newsItems.join(' /// '),scrollX,1040);
+}
+
+function applyGlitchEffects(){
+STATE.glitchIntensity=Math.min(1,STATE.frame/STATE.maxFrames);
+if(Math.random()<STATE.glitchIntensity*0.3){
+const x=Math.random()*1920;
+const y=Math.random()*1080;
+const w=100+Math.random()*300;
+const h=20+Math.random()*100;
+try{
+const imageData=ctx.getImageData(x,y,w,h);
+const data=imageData.data;
+for(let i=0;i<data.length;i+=4){
+const shift=Math.floor(Math.random()*100);
+data[i]=data[Math.min(i+shift,data.length-4)];
+data[i+1]=data[Math.max(i-shift,0)+1];
+}
+ctx.putImageData(imageData,x+(Math.random()-0.5)*20,y);
+}catch(e){}
+}
+if(Math.random()<0.01){
+ctx.fillStyle=`rgba(${Math.random()*255}, 0, 0, 0.8)`;
+ctx.fillRect(0,0,1920,1080);
+ctx.fillStyle="#fff";
+ctx.font="150px Special Elite";
+ctx.textAlign="center";
+ctx.fillText(String(_.sample(STATE.pattern)),960,540);
+}
+if(Math.random()<STATE.glitchIntensity*0.2){
+ctx.fillStyle=`rgba(255, 255, 255, ${Math.random()*0.5})`;
+for(let i=0;i<5;i++){
+const y=Math.random()*1080;
+ctx.fillRect(0,y,1920,2+Math.random()*3);
+}
+}
+}
+
+function render(){
+if(!STATE.active)return;
+STATE.frame++;
+STATE.scene=Math.floor(STATE.frame/900)%6;
+STATE.fiendProximity=Math.pow(STATE.frame/STATE.maxFrames,2);
+switch(STATE.scene){
+case 0:drawMissingPersonPoster();break;
+case 1:drawEvidenceBoard();break;
+case 2:drawFoundFootage();break;
+case 3:drawStaticTransition();break;
+case 4:drawTheFiend();break;
+case 5:drawMissingPersonPoster();break;
+}
+drawVHSTimestamp();
+drawNewsChyron();
+applyGlitchEffects();
+if(STATE.frame<STATE.maxFrames){
+requestAnimationFrame(render);
+}else{
+finishRecording();
+}
+}
+
+function startRecording(){
+document.getElementById("boot-screen").style.display="none";
+setupAudio();
+const videoStream=canvas.captureStream(60);
+const audioStream=STATE.audioDestination.stream;
+const combinedStream=new MediaStream([...videoStream.getVideoTracks(),...audioStream.getAudioTracks()]);
+STATE.recorder=new MediaRecorder(combinedStream,{
+mimeType:'video/webm;codecs=vp9,opus',
+videoBitsPerSecond:5000000
+});
+STATE.recorder.ondataavailable=(e)=>{
+if(e.data.size>0)STATE.chunks.push(e.data);
+};
+STATE.recorder.onstop=()=>{
+const blob=new Blob(STATE.chunks,{type:'video/webm'});
+const url=URL.createObjectURL(blob);
+const a=document.createElement('a');
+a.style.display='none';
+a.href=url;
+a.download=`MISSING_${STATE.victim.name.replace(/ /g,'_')}_${STATE.caseNumber}.webm`;
+document.body.appendChild(a);
+a.click();
+setTimeout(()=>{
+URL.revokeObjectURL(url);
+window.location.reload();
+},3000);
+};
+STATE.recorder.start(100);
+STATE.active=true;
+render();
+
+// Distorted TTS narration
+const text=`Case number ${STATE.caseNumber}. ${STATE.victim.name}, age ${STATE.victim.age}, last seen at ${STATE.victim.lastSeen} on ${STATE.victim.date}. If you have any information, please contact authorities immediately. The following footage contains anomalies. Viewer discretion is advised.`;
+createDistortedSpeech(text);
+}
+
+function finishRecording(){
+STATE.active=false;
+if(STATE.recorder&&STATE.recorder.state!=='inactive'){
+STATE.recorder.stop();
+}
+}
+
+// Wait for voices to load
+window.speechSynthesis.onvoiceschanged=()=>{
+console.log('Voices loaded:',window.speechSynthesis.getVoices().length);
+};
+
+initialize();
+document.getElementById("init-btn").addEventListener("click",startRecording);
 })();
 </script>
 </body>
